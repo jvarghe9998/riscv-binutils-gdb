@@ -475,6 +475,7 @@ TARGET_CPU_CFILES = \
 	config/tc-ppc.c \
 	config/tc-pru.c \
 	config/tc-riscv.c \
+	config/tc-zpu.c \
 	config/tc-rl78.c \
 	config/tc-rx.c \
 	config/tc-s390.c \
@@ -1660,6 +1661,20 @@ tc-riscv.obj: config/tc-riscv.c
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	source='config/tc-riscv.c' object='tc-riscv.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tc-riscv.obj `if test -f 'config/tc-riscv.c'; then $(CYGPATH_W) 'config/tc-riscv.c'; else $(CYGPATH_W) '$(srcdir)/config/tc-riscv.c'; fi`
+
+tc-zpu.o: config/tc-zpu.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tc-zpu.o -MD -MP -MF $(DEPDIR)/tc-zpu.Tpo -c -o tc-zpu.o `test -f 'config/tc-zpu.c' || echo '$(srcdir)/'`config/tc-zpu.c
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/tc-zpu.Tpo $(DEPDIR)/tc-zpu.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='config/tc-zpu.c' object='tc-zpu.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tc-zpu.o `test -f 'config/tc-zpu.c' || echo '$(srcdir)/'`config/tc-zpu.c
+
+tc-zpu.obj: config/tc-zpu.c
+@am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tc-zpu.obj -MD -MP -MF $(DEPDIR)/tc-zpu.Tpo -c -o tc-zpu.obj `if test -f 'config/tc-zpu.c'; then $(CYGPATH_W) 'config/tc-zpu.c'; else $(CYGPATH_W) '$(srcdir)/config/tc-zpu.c'; fi`
+@am__fastdepCC_TRUE@	$(am__mv) $(DEPDIR)/tc-zpu.Tpo $(DEPDIR)/tc-zpu.Po
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	source='config/tc-zpu.c' object='tc-zpu.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCC_FALSE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o tc-zpu.obj `if test -f 'config/tc-zpu.c'; then $(CYGPATH_W) 'config/tc-zpu.c'; else $(CYGPATH_W) '$(srcdir)/config/tc-zpu.c'; fi`
 
 tc-rl78.o: config/tc-rl78.c
 @am__fastdepCC_TRUE@	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT tc-rl78.o -MD -MP -MF $(DEPDIR)/tc-rl78.Tpo -c -o tc-rl78.o `test -f 'config/tc-rl78.c' || echo '$(srcdir)/'`config/tc-rl78.c

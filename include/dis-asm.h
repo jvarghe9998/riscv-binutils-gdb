@@ -274,6 +274,7 @@ extern int print_insn_little_mips	(bfd_vma, disassemble_info *);
 extern int print_insn_little_nios2	(bfd_vma, disassemble_info *);
 extern int print_insn_little_powerpc	(bfd_vma, disassemble_info *);
 extern int print_insn_riscv		(bfd_vma, disassemble_info *);
+extern int print_insn_zpu		(bfd_vma, disassemble_info *);
 extern int print_insn_little_score      (bfd_vma, disassemble_info *); 
 extern int print_insn_lm32		(bfd_vma, disassemble_info *);
 extern int print_insn_m32c	        (bfd_vma, disassemble_info *);

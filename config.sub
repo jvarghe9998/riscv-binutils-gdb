@@ -2,7 +2,7 @@
 # Configuration validation subroutine script.
 #   Copyright 1992-2017 Free Software Foundation, Inc.
 
-timestamp='2017-04-02'
+timestamp='2017-06-13'
 
 # This file is free software; you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -318,6 +318,7 @@ case $basic_machine in
 	| wasm32 \
 	| we32k \
 	| x86 | xc16x | xstormy16 | xtensa \
+	| zpu \
 	| z8k | z80)
 		basic_machine=$basic_machine-unknown
 		;;
@@ -452,6 +453,7 @@ case $basic_machine in
 	| x86-* | x86_64-* | xc16x-* | xps100-* \
 	| xstormy16-* | xtensa*-* \
 	| ymp-* \
+	| zpu \
 	| z8k-* | z80-*)
 		;;
 	# Recognize the basic CPU types without company name, with glob match.

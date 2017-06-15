@@ -150,6 +150,7 @@ ALL_MACHINES = \
 	cpu-pru.lo \
 	cpu-rs6000.lo \
 	cpu-riscv.lo \
+	cpu-zpu.lo \
 	cpu-rl78.lo \
 	cpu-rx.lo \
 	cpu-s390.lo \
@@ -240,6 +241,7 @@ ALL_MACHINES_CFILES = \
 	cpu-pru.c \
 	cpu-rs6000.c \
 	cpu-riscv.c \
+	cpu-zpu.c \
 	cpu-rl78.c \
 	cpu-rx.c \
 	cpu-s390.c \
@@ -694,6 +696,9 @@ BFD64_BACKENDS = \
 	elf32-riscv.lo \
 	elf64-riscv.lo \
 	elfxx-riscv.lo \
+	elf32-zpu.lo \
+	elf64-zpu.lo \
+	elfxx-zpu.lo \
 	elf64-s390.lo \
 	elf64-sh64.lo \
 	elf64-sparc.lo \
@@ -740,6 +745,7 @@ BFD64_BACKENDS_CFILES = \
 	elfxx-ia64.c \
 	elfxx-mips.c \
 	elfxx-riscv.c \
+	elfxx-zpu.c \
 	mach-o-aarch64.c \
 	mach-o-x86-64.c \
 	mmo.c \
@@ -805,6 +811,7 @@ BUILD_CFILES = \
 	elf32-aarch64.c elf64-aarch64.c \
 	elf32-ia64.c elf64-ia64.c \
 	elf32-riscv.c elf64-riscv.c \
+	elf32-zpu.c elf64-zpu.c \
 	peigen.c pepigen.c pex64igen.c
 
 CFILES = $(SOURCE_CFILES) $(BUILD_CFILES)
@@ -986,6 +993,18 @@ elf64-riscv.c : elfnn-riscv.c
 	echo "#line 1 \"$(srcdir)/elfnn-riscv.c\"" > elf64-riscv.new
 	sed -e s/NN/64/g < $(srcdir)/elfnn-riscv.c >> elf64-riscv.new
 	mv -f elf64-riscv.new elf64-riscv.c
+
+elf32-zpu.c : elfnn-zpu.c
+	rm -f elf32-zpu.c
+	echo "#line 1 \"$(srcdir)/elfnn-zpu.c\"" > elf32-zpu.new
+	sed -e s/NN/32/g < $(srcdir)/elfnn-zpu.c >> elf32-zpu.new
+	mv -f elf32-zpu.new elf32-zpu.c
+
+elf64-zpu.c : elfnn-zpu.c
+	rm -f elf64-zpu.c
+	echo "#line 1 \"$(srcdir)/elfnn-zpu.c\"" > elf64-zpu.new
+	sed -e s/NN/64/g < $(srcdir)/elfnn-zpu.c >> elf64-zpu.new
+	mv -f elf64-zpu.new elf64-zpu.c
 
 peigen.c : peXXigen.c
 	rm -f peigen.c

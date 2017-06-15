@@ -489,6 +489,7 @@ enum elf_target_id
   TILEGX_ELF_DATA,
   TILEPRO_ELF_DATA,
   RISCV_ELF_DATA,
+  ZPU_ELF_DATA,
   GENERIC_ELF_DATA
 };
 
