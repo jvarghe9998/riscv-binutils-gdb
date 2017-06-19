@@ -1188,8 +1188,8 @@ eelf32lriscv.c: $(srcdir)/emulparams/elf32lriscv.sh \
   $(srcdir)/emultempl/riscvelf.em $(srcdir)/scripttempl/elf.sc \
   ${GEN_DEPENDS}
 
-eelf32lzpu.c: $(srcdir)/emulparams/elf32lzpu.sh \
-  $(srcdir)/emulparams/elf32lzpu-defs.sh $(ELF_DEPS) \
+eelf32zpu.c: $(srcdir)/emulparams/elf32zpu.sh \
+  $(srcdir)/emulparams/elf32zpu-defs.sh $(ELF_DEPS) \
   $(srcdir)/emultempl/zpuelf.em $(srcdir)/scripttempl/elf.sc \
   ${GEN_DEPENDS}
 
@@ -2004,9 +2004,9 @@ eelf64lriscv.c: $(srcdir)/emulparams/elf64lriscv.sh \
   $(srcdir)/emultempl/riscvelf.em $(srcdir)/scripttempl/elf.sc \
   ${GEN_DEPENDS}
 
-eelf64lzpu.c: $(srcdir)/emulparams/elf64lzpu.sh \
-  $(srcdir)/emulparams/elf64lzpu-defs.sh \
-  $(srcdir)/emulparams/elf32lzpu-defs.sh $(ELF_DEPS) \
+eelf64zpu.c: $(srcdir)/emulparams/elf64zpu.sh \
+  $(srcdir)/emulparams/elf64zpu-defs.sh \
+  $(srcdir)/emulparams/elf32zpu-defs.sh $(ELF_DEPS) \
   $(srcdir)/emultempl/zpuelf.em $(srcdir)/scripttempl/elf.sc \
   ${GEN_DEPENDS}
 
