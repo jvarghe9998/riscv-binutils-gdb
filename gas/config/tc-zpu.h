@@ -1,8 +1,8 @@
 /* tc-zpu.h -- header file for tc-zpu.c.
    Copyright (C) 2011-2017 Free Software Foundation, Inc.
 
-   Contributed by Andrew Waterman (andrew@sifive.com).
-   Based on MIPS target.
+   Contributed by Joe Varghese (varghese@zyzyxtech.com).
+   Based on RISC-V target.
 
    This file is part of GAS.
 

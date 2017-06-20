@@ -1,8 +1,8 @@
 /* tc-zpu.c -- RISC-V assembler
    Copyright (C) 2011-2017 Free Software Foundation, Inc.
 
-   Contributed by Andrew Waterman (andrew@sifive.com).
-   Based on MIPS target.
+   Contributed by Joe Varghese (varghese@zyzyxtech.com).
+   Based on RISC-V target.
 
    This file is part of GAS.
 
@@ -504,7 +504,7 @@ validate_zpu_insn (const struct zpu_opcode *opc)
 
   if ((used_bits & opc->match) != (opc->match & required_bits))
     {
-      as_bad (_("internal: bad RISC-V opcode (mask error): %s %s"),
+      as_bad (_("internal: bad ZPU opcode (mask error): %s %s"),
 	      opc->name, opc->args);
       return FALSE;
     }
@@ -543,7 +543,7 @@ validate_zpu_insn (const struct zpu_opcode *opc)
 	  case 'T': USE_BITS (OP_MASK_CRS2, OP_SH_CRS2); break;
 	  case 'D': USE_BITS (OP_MASK_CRS2S, OP_SH_CRS2S); break;
 	  default:
-	    as_bad (_("internal: bad RISC-V opcode (unknown operand type `C%c'): %s %s"),
+	    as_bad (_("internal: bad ZPU opcode (unknown operand type `C%c'): %s %s"),
 		    c, opc->name, opc->args);
 	    return FALSE;
 	  }
@@ -578,7 +578,7 @@ validate_zpu_insn (const struct zpu_opcode *opc)
       case ']': break;
       case '0': break;
       default:
-	as_bad (_("internal: bad RISC-V opcode "
+	as_bad (_("internal: bad ZPU opcode "
 		  "(unknown operand type `%c'): %s %s"),
 		c, opc->name, opc->args);
 	return FALSE;
@@ -586,7 +586,7 @@ validate_zpu_insn (const struct zpu_opcode *opc)
 #undef USE_BITS
   if (used_bits != required_bits)
     {
-      as_bad (_("internal: bad RISC-V opcode (bits 0x%lx undefined): %s %s"),
+      as_bad (_("internal: bad ZPU opcode (bits 0x%lx undefined): %s %s"),
 	      ~(unsigned long)(used_bits & required_bits),
 	      opc->name, opc->args);
       return FALSE;
@@ -707,7 +707,7 @@ append_insn (struct zpu_cl_insn *ip, expressionS *address_expr,
 	{
 	  howto = bfd_reloc_type_lookup (stdoutput, reloc_type);
 	  if (howto == NULL)
-	    as_bad (_("Unsupported RISC-V relocation number %d"), reloc_type);
+	    as_bad (_("Unsupported ZPU relocation number %d"), reloc_type);
 
 	  ip->fixp = fix_new_exp (ip->frag, ip->where,
 				  bfd_get_reloc_size (howto),
@@ -909,7 +909,7 @@ load_const (int reg, expressionS *ep)
     }
 }
 
-/* Expand RISC-V assembly macros into one or more instructions.  */
+/* Expand ZPU assembly macros into one or more instructions.  */
 static void
 macro (struct zpu_cl_insn *ip, expressionS *imm_expr,
        bfd_reloc_code_real_type *imm_reloc)
@@ -2236,7 +2236,7 @@ zpu_make_nops (char *buf, bfd_vma bytes)
 {
   bfd_vma i = 0;
 
-  /* RISC-V instructions cannot begin or end on odd addresses, so this case
+  /* ZPU instructions cannot begin or end on odd addresses, so this case
      means we are not within a valid instruction sequence.  It is thus safe
      to use a zero byte, even though that is not a valid instruction.  */
   if (bytes % 2 == 1)
@@ -2396,7 +2396,7 @@ md_convert_frag_branch (fragS *fragp)
 	{
 	  case 8:
 	  case 4:
-	    /* Expand the RVC branch into a RISC-V one.  */
+	    /* Expand the RVC branch into a ZPU one.  */
 	    insn = bfd_getl16 (buf);
 	    rs1 = 8 + ((insn >> OP_SH_CRS1S) & OP_MASK_CRS1S);
 	    if ((insn & MASK_C_J) == MATCH_C_J)
@@ -2492,11 +2492,11 @@ void
 md_show_usage (FILE *stream)
 {
   fprintf (stream, _("\
-RISC-V options:\n\
+ZPU options:\n\
   -fpic          generate position-independent code\n\
   -fno-pic       don't generate position-independent code (default)\n\
-  -march=ISA     set the RISC-V architecture\n\
-  -mabi=ABI      set the RISC-V ABI\n\
+  -march=ISA     set the ZPU architecture\n\
+  -mabi=ABI      set the ZPU ABI\n\
 "));
 }
 
@@ -2550,7 +2550,7 @@ s_zpu_leb128 (int sign)
 
 static const pseudo_typeS zpu_pseudo_table[] =
 {
-  /* RISC-V-specific pseudo-ops.  */
+  /* ZPU-specific pseudo-ops.  */
   {"option", s_zpu_option, 0},
   {"half", cons, 2},
   {"word", cons, 4},

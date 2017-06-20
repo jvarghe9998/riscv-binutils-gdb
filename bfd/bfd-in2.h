@@ -2321,7 +2321,8 @@ enum bfd_architecture
 #define bfd_mach_riscv32       132
 #define bfd_mach_riscv64       164
   bfd_arch_zpu,
-#define bfd_mach_zpu       133
+#define bfd_mach_zpu       0x8000
+#define bfd_mach_zpu2     0x8001
   bfd_arch_rl78,
 #define bfd_mach_rl78  0x75
   bfd_arch_rx,        /* Renesas RX.  */

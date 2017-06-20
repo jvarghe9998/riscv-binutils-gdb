@@ -59,7 +59,7 @@ zpu_compatible (const bfd_arch_info_type *a, const bfd_arch_info_type *b)
 /* This enum must be kept in the same order as arch_info_struct.  */
 enum
 {
-  zpu
+  I_zpu2
 };
 
 #define NN(index) (&arch_info_struct[(index) + 1])
@@ -68,10 +68,10 @@ enum
    and each entry except the last should end with NN (my enum value).  */
 static const bfd_arch_info_type arch_info_struct[] =
 {
-  N (32, 32, bfd_mach_zpu, "zpu:rv32", FALSE, 0)
+  N (32, 64, bfd_mach_zpu2, "zpu2", FALSE, 0)
 };
 
-/* The default architecture is zpu:rv64.  */
+/* The default architecture is zpu  */
 
 const bfd_arch_info_type bfd_zpu_arch =
-  N (64, 64, 0, "zpu", TRUE, &arch_info_struct[0]);
+  N (32, 64, bfd_mach_zpu, "zpu", TRUE, &arch_info_struct[0]);

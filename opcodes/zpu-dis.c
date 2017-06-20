@@ -410,8 +410,8 @@ zpu_disassemble_insn (bfd_vma memaddr, insn_t word, disassemble_info *info)
 
       /* If XLEN is not known, get its value from the ELF class.  */
       if (info->mach == bfd_mach_zpu)
-	xlen = 64;
-      else if (info->mach == bfd_mach_zpu)
+	xlen = 32;
+      if (info->mach == bfd_mach_zpu2)
 	xlen = 32;
       else if (info->section != NULL)
 	{
