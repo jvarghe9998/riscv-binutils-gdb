@@ -1,4 +1,4 @@
-/* tc-zpu.c -- RISC-V assembler
+/* tc-riscv.c -- RISC-V assembler
    Copyright (C) 2011-2017 Free Software Foundation, Inc.
 
    Contributed by Andrew Waterman (andrew@sifive.com).
@@ -30,17 +30,17 @@
 #include "dw2gencfi.h"
 #include "struc-symbol.h"
 
-#include "elf/zpu.h"
-#include "opcode/zpu.h"
+#include "elf/riscv.h"
+#include "opcode/riscv.h"
 
 #include <stdint.h>
 
 /* Information about an instruction, including its format, operands
    and fixups.  */
-struct zpu_cl_insn
+struct riscv_cl_insn
 {
-  /* The opcode's entry in zpu_opcodes.  */
-  const struct zpu_opcode *insn_mo;
+  /* The opcode's entry in riscv_opcodes.  */
+  const struct riscv_opcode *insn_mo;
 
   /* The encoded instruction bits.  */
   insn_t insn_opcode;
@@ -56,7 +56,7 @@ struct zpu_cl_insn
 };
 
 #ifndef DEFAULT_ARCH
-#define DEFAULT_ARCH "zpu"
+#define DEFAULT_ARCH "riscv64"
 #endif
 
 static const char default_arch[] = DEFAULT_ARCH;
@@ -71,14 +71,14 @@ static unsigned elf_flags = 0;
 
 /* This is the set of options which the .option pseudo-op may modify.  */
 
-struct zpu_set_options
+struct riscv_set_options
 {
   int pic; /* Generate position-independent code.  */
   int rvc; /* Generate RVC code.  */
   int relax; /* Emit relocs the linker is allowed to relax.  */
 };
 
-static struct zpu_set_options zpu_opts =
+static struct riscv_set_options riscv_opts =
 {
   0,	/* pic */
   0,	/* rvc */
@@ -86,34 +86,34 @@ static struct zpu_set_options zpu_opts =
 };
 
 static void
-zpu_set_rvc (bfd_boolean rvc_value)
+riscv_set_rvc (bfd_boolean rvc_value)
 {
   if (rvc_value)
-    elf_flags |= EF_ZPU_RVC;
+    elf_flags |= EF_RISCV_RVC;
 
-  zpu_opts.rvc = rvc_value;
+  riscv_opts.rvc = rvc_value;
 }
 
-struct zpu_subset
+struct riscv_subset
 {
   const char *name;
 
-  struct zpu_subset *next;
+  struct riscv_subset *next;
 };
 
-static struct zpu_subset *zpu_subsets;
+static struct riscv_subset *riscv_subsets;
 
 static bfd_boolean
-zpu_subset_supports (const char *feature)
+riscv_subset_supports (const char *feature)
 {
-  struct zpu_subset *s;
+  struct riscv_subset *s;
   char *p;
   unsigned xlen_required = strtoul (feature, &p, 10);
 
   if (xlen_required && xlen != xlen_required)
     return FALSE;
 
-  for (s = zpu_subsets; s != NULL; s = s->next)
+  for (s = riscv_subsets; s != NULL; s = s->next)
     if (strcasecmp (s->name, p) == 0)
       return TRUE;
 
@@ -121,37 +121,37 @@ zpu_subset_supports (const char *feature)
 }
 
 static void
-zpu_clear_subsets (void)
+riscv_clear_subsets (void)
 {
-  while (zpu_subsets != NULL)
+  while (riscv_subsets != NULL)
     {
-      struct zpu_subset *next = zpu_subsets->next;
-      free ((void *) zpu_subsets->name);
-      free (zpu_subsets);
-      zpu_subsets = next;
+      struct riscv_subset *next = riscv_subsets->next;
+      free ((void *) riscv_subsets->name);
+      free (riscv_subsets);
+      riscv_subsets = next;
     }
 }
 
 static void
-zpu_add_subset (const char *subset)
+riscv_add_subset (const char *subset)
 {
-  struct zpu_subset *s = xmalloc (sizeof *s);
+  struct riscv_subset *s = xmalloc (sizeof *s);
 
   s->name = xstrdup (subset);
-  s->next = zpu_subsets;
-  zpu_subsets = s;
+  s->next = riscv_subsets;
+  riscv_subsets = s;
 }
 
 /* Set which ISA and extensions are available.  */
 
 static void
-zpu_set_arch (const char *s)
+riscv_set_arch (const char *s)
 {
   const char *all_subsets = "imafdc";
   const char *extension = NULL;
   const char *p = s;
 
-  zpu_clear_subsets();
+  riscv_clear_subsets();
 
   if (strncmp (p, "rv32", 4) == 0)
     {
@@ -176,7 +176,7 @@ zpu_set_arch (const char *s)
 	for ( ; *all_subsets != 'c'; all_subsets++)
 	  {
 	    const char subset[] = {*all_subsets, '\0'};
-	    zpu_add_subset (subset);
+	    riscv_add_subset (subset);
 	  }
 	break;
 
@@ -198,7 +198,7 @@ zpu_set_arch (const char *s)
 	    as_fatal ("-march=%s: only one non-standard extension is supported"
 		      " (found `%s' and `%s')", s, extension, subset);
 	  extension = subset;
-	  zpu_add_subset (subset);
+	  riscv_add_subset (subset);
 	  p += strlen (subset);
 	  free (subset);
 	}
@@ -207,14 +207,14 @@ zpu_set_arch (const char *s)
       else if ((all_subsets = strchr (all_subsets, *p)) != NULL)
 	{
 	  const char subset[] = {*p, 0};
-	  zpu_add_subset (subset);
+	  riscv_add_subset (subset);
 	  all_subsets++;
 	  p++;
 	}
       else if (*p == 'q')
 	{
 	  const char subset[] = {*p, 0};
-	  zpu_add_subset (subset);
+	  riscv_add_subset (subset);
 	  p++;
 	}
       else
@@ -272,7 +272,7 @@ const char FLT_CHARS[] = "rRsSfFdDxXpP";
    || (((x) &~ (offsetT) 0xffffffff) == ~ (offsetT) 0xffffffff))
 
 /* Change INSN's opcode so that the operand given by FIELD has value VALUE.
-   INSN is a zpu_cl_insn structure and VALUE is evaluated exactly once.  */
+   INSN is a riscv_cl_insn structure and VALUE is evaluated exactly once.  */
 #define INSERT_OPERAND(FIELD, INSN, VALUE) \
   INSERT_BITS ((INSN).insn_opcode, VALUE, OP_MASK_##FIELD, OP_SH_##FIELD)
 
@@ -285,23 +285,23 @@ static char *expr_end;
 /* The default target format to use.  */
 
 const char *
-zpu_target_format (void)
+riscv_target_format (void)
 {
-  return xlen == 64 ? "elf64-littlezpu" : "elf32-littlezpu";
+  return xlen == 64 ? "elf64-littleriscv" : "elf32-littleriscv";
 }
 
 /* Return the length of instruction INSN.  */
 
 static inline unsigned int
-insn_length (const struct zpu_cl_insn *insn)
+insn_length (const struct riscv_cl_insn *insn)
 {
-  return zpu_insn_length (insn->insn_opcode);
+  return riscv_insn_length (insn->insn_opcode);
 }
 
 /* Initialise INSN from opcode entry MO.  Leave its position unspecified.  */
 
 static void
-create_insn (struct zpu_cl_insn *insn, const struct zpu_opcode *mo)
+create_insn (struct riscv_cl_insn *insn, const struct riscv_opcode *mo)
 {
   insn->insn_mo = mo;
   insn->insn_opcode = mo->match;
@@ -313,7 +313,7 @@ create_insn (struct zpu_cl_insn *insn, const struct zpu_opcode *mo)
 /* Install INSN at the location specified by its "frag" and "where" fields.  */
 
 static void
-install_insn (const struct zpu_cl_insn *insn)
+install_insn (const struct riscv_cl_insn *insn)
 {
   char *f = insn->frag->fr_literal + insn->where;
   md_number_to_chars (f, insn->insn_opcode, insn_length (insn));
@@ -323,7 +323,7 @@ install_insn (const struct zpu_cl_insn *insn)
    and install the opcode in the new location.  */
 
 static void
-move_insn (struct zpu_cl_insn *insn, fragS *frag, long where)
+move_insn (struct riscv_cl_insn *insn, fragS *frag, long where)
 {
   insn->frag = frag;
   insn->where = where;
@@ -338,14 +338,14 @@ move_insn (struct zpu_cl_insn *insn, fragS *frag, long where)
 /* Add INSN to the end of the output.  */
 
 static void
-add_fixed_insn (struct zpu_cl_insn *insn)
+add_fixed_insn (struct riscv_cl_insn *insn)
 {
   char *f = frag_more (insn_length (insn));
   move_insn (insn, frag_now, f - frag_now->fr_literal);
 }
 
 static void
-add_relaxed_insn (struct zpu_cl_insn *insn, int max_chars, int var,
+add_relaxed_insn (struct riscv_cl_insn *insn, int max_chars, int var,
       relax_substateT subtype, symbolS *symbol, offsetT offset)
 {
   frag_grow (max_chars);
@@ -383,7 +383,7 @@ relaxed_branch_length (fragS *fragp, asection *sec, int update)
 
       if (rvc && (bfd_vma)(val + rvc_range/2) < rvc_range)
 	length = 2;
-      else if ((bfd_vma)(val + ZPU_BRANCH_REACH/2) < ZPU_BRANCH_REACH)
+      else if ((bfd_vma)(val + RISCV_BRANCH_REACH/2) < RISCV_BRANCH_REACH)
 	length = 4;
       else if (!jump && rvc)
 	length = 6;
@@ -494,12 +494,12 @@ arg_lookup (char **s, const char *const *array, size_t size, unsigned *regnop)
    by the match/mask part of the instruction definition, or by the
    operand list.  */
 static bfd_boolean
-validate_zpu_insn (const struct zpu_opcode *opc)
+validate_riscv_insn (const struct riscv_opcode *opc)
 {
   const char *p = opc->args;
   char c;
   insn_t used_bits = opc->mask;
-  int insn_width = 8 * zpu_insn_length (opc->match);
+  int insn_width = 8 * riscv_insn_length (opc->match);
   insn_t required_bits = ~0ULL >> (64 - insn_width);
 
   if ((used_bits & opc->match) != (opc->match & required_bits))
@@ -607,68 +607,68 @@ void
 md_begin (void)
 {
   int i = 0;
-  unsigned long mach = xlen == 64 ? bfd_mach_zpu : bfd_mach_zpu;
+  unsigned long mach = xlen == 64 ? bfd_mach_riscv64 : bfd_mach_riscv32;
 
-  if (! bfd_set_arch_mach (stdoutput, bfd_arch_zpu, mach))
+  if (! bfd_set_arch_mach (stdoutput, bfd_arch_riscv, mach))
     as_warn (_("Could not set architecture and machine"));
 
   op_hash = hash_new ();
 
-  while (zpu_opcodes[i].name)
+  while (riscv_opcodes[i].name)
     {
-      const char *name = zpu_opcodes[i].name;
+      const char *name = riscv_opcodes[i].name;
       const char *hash_error =
-	hash_insert (op_hash, name, (void *) &zpu_opcodes[i]);
+	hash_insert (op_hash, name, (void *) &riscv_opcodes[i]);
 
       if (hash_error)
 	{
 	  fprintf (stderr, _("internal error: can't hash `%s': %s\n"),
-		   zpu_opcodes[i].name, hash_error);
+		   riscv_opcodes[i].name, hash_error);
 	  /* Probably a memory allocation problem?  Give up now.  */
 	  as_fatal (_("Broken assembler.  No assembly attempted."));
 	}
 
       do
 	{
-	  if (zpu_opcodes[i].pinfo != INSN_MACRO)
+	  if (riscv_opcodes[i].pinfo != INSN_MACRO)
 	    {
-	      if (!validate_zpu_insn (&zpu_opcodes[i]))
+	      if (!validate_riscv_insn (&riscv_opcodes[i]))
 		as_fatal (_("Broken assembler.  No assembly attempted."));
 	    }
 	  ++i;
 	}
-      while (zpu_opcodes[i].name && !strcmp (zpu_opcodes[i].name, name));
+      while (riscv_opcodes[i].name && !strcmp (riscv_opcodes[i].name, name));
     }
 
   reg_names_hash = hash_new ();
-  hash_reg_names (RCLASS_GPR, zpu_gpr_names_numeric, NGPR);
-  hash_reg_names (RCLASS_GPR, zpu_gpr_names_abi, NGPR);
-  hash_reg_names (RCLASS_FPR, zpu_fpr_names_numeric, NFPR);
-  hash_reg_names (RCLASS_FPR, zpu_fpr_names_abi, NFPR);
+  hash_reg_names (RCLASS_GPR, riscv_gpr_names_numeric, NGPR);
+  hash_reg_names (RCLASS_GPR, riscv_gpr_names_abi, NGPR);
+  hash_reg_names (RCLASS_FPR, riscv_fpr_names_numeric, NFPR);
+  hash_reg_names (RCLASS_FPR, riscv_fpr_names_abi, NFPR);
 
 #define DECLARE_CSR(name, num) hash_reg_name (RCLASS_CSR, #name, num);
-#include "opcode/zpu-opc.h"
+#include "opcode/riscv-opc.h"
 #undef DECLARE_CSR
 
   /* Set the default alignment for the text section.  */
-  record_alignment (text_section, zpu_opts.rvc ? 1 : 2);
+  record_alignment (text_section, riscv_opts.rvc ? 1 : 2);
 }
 
 static insn_t
-zpu_apply_const_reloc (bfd_reloc_code_real_type reloc_type, bfd_vma value)
+riscv_apply_const_reloc (bfd_reloc_code_real_type reloc_type, bfd_vma value)
 {
   switch (reloc_type)
     {
     case BFD_RELOC_32:
       return value;
 
-    case BFD_RELOC_ZPU_HI20:
-      return ENCODE_UTYPE_IMM (ZPU_CONST_HIGH_PART (value));
+    case BFD_RELOC_RISCV_HI20:
+      return ENCODE_UTYPE_IMM (RISCV_CONST_HIGH_PART (value));
 
-    case BFD_RELOC_ZPU_LO12_S:
+    case BFD_RELOC_RISCV_LO12_S:
       return ENCODE_STYPE_IMM (value);
 
-    case BFD_RELOC_ZPU_LO12_I:
+    case BFD_RELOC_RISCV_LO12_I:
       return ENCODE_ITYPE_IMM (value);
 
     default:
@@ -681,7 +681,7 @@ zpu_apply_const_reloc (bfd_reloc_code_real_type reloc_type, bfd_vma value)
    RELOC_TYPE.  */
 
 static void
-append_insn (struct zpu_cl_insn *ip, expressionS *address_expr,
+append_insn (struct riscv_cl_insn *ip, expressionS *address_expr,
 	     bfd_reloc_code_real_type reloc_type)
 {
   dwarf2_emit_insn (0);
@@ -692,10 +692,10 @@ append_insn (struct zpu_cl_insn *ip, expressionS *address_expr,
 
       gas_assert (address_expr);
       if (reloc_type == BFD_RELOC_12_PCREL
-	  || reloc_type == BFD_RELOC_ZPU_JMP)
+	  || reloc_type == BFD_RELOC_RISCV_JMP)
 	{
-	  int j = reloc_type == BFD_RELOC_ZPU_JMP;
-	  int best_case = zpu_insn_length (ip->insn_opcode);
+	  int j = reloc_type == BFD_RELOC_RISCV_JMP;
+	  int best_case = riscv_insn_length (ip->insn_opcode);
 	  unsigned worst_case = relaxed_branch_length (NULL, NULL, 0);
 	  add_relaxed_insn (ip, worst_case, best_case,
 			    RELAX_BRANCH_ENCODE (j, best_case == 2, worst_case),
@@ -713,7 +713,7 @@ append_insn (struct zpu_cl_insn *ip, expressionS *address_expr,
 				  bfd_get_reloc_size (howto),
 				  address_expr, FALSE, reloc_type);
 
-	  ip->fixp->fx_tcbit = zpu_opts.relax;
+	  ip->fixp->fx_tcbit = riscv_opts.relax;
 	}
     }
 
@@ -729,20 +729,20 @@ append_insn (struct zpu_cl_insn *ip, expressionS *address_expr,
 static void
 macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 {
-  const struct zpu_opcode *mo;
-  struct zpu_cl_insn insn;
+  const struct riscv_opcode *mo;
+  struct riscv_cl_insn insn;
   bfd_reloc_code_real_type r;
   va_list args;
 
   va_start (args, fmt);
 
   r = BFD_RELOC_UNUSED;
-  mo = (struct zpu_opcode *) hash_find (op_hash, name);
+  mo = (struct riscv_opcode *) hash_find (op_hash, name);
   gas_assert (mo);
 
   /* Find a non-RVC variant of the instruction.  append_insn will compress
      it if possible.  */
-  while (zpu_insn_length (mo->match) < 4)
+  while (riscv_insn_length (mo->match) < 4)
     mo++;
   gas_assert (strcmp (name, mo->name) == 0);
 
@@ -805,7 +805,7 @@ normalize_constant_expr (expressionS *ex)
 /* Fail if an expression is not a constant.  */
 
 static void
-check_absolute_expr (struct zpu_cl_insn *ip, expressionS *ex)
+check_absolute_expr (struct riscv_cl_insn *ip, expressionS *ex)
 {
   if (ex->X_op == O_big)
     as_bad (_("unsupported large constant"));
@@ -856,7 +856,7 @@ pcrel_store (int srcreg, int tempreg, expressionS *ep, const char *lo_insn,
 
 /* PC-relative function call using AUIPC/JALR, relaxed to JAL.  */
 static void
-zpu_call (int destreg, int tempreg, expressionS *ep,
+riscv_call (int destreg, int tempreg, expressionS *ep,
 	    bfd_reloc_code_real_type reloc)
 {
   macro_build (ep, "auipc", "d,u", tempreg, reloc);
@@ -868,7 +868,7 @@ zpu_call (int destreg, int tempreg, expressionS *ep,
 static void
 load_const (int reg, expressionS *ep)
 {
-  int shift = ZPU_IMM_BITS;
+  int shift = RISCV_IMM_BITS;
   expressionS upper = *ep, lower = *ep;
   lower.X_add_number = (int32_t) ep->X_add_number << (32-shift) >> (32-shift);
   upper.X_add_number -= lower.X_add_number;
@@ -890,7 +890,7 @@ load_const (int reg, expressionS *ep)
 
       macro_build (NULL, "slli", "d,s,>", reg, reg, shift);
       if (lower.X_add_number != 0)
-	macro_build (&lower, "addi", "d,s,j", reg, reg, BFD_RELOC_ZPU_LO12_I);
+	macro_build (&lower, "addi", "d,s,j", reg, reg, BFD_RELOC_RISCV_LO12_I);
     }
   else
     {
@@ -899,19 +899,19 @@ load_const (int reg, expressionS *ep)
 
       if (upper.X_add_number != 0)
 	{
-	  macro_build (ep, "lui", "d,u", reg, BFD_RELOC_ZPU_HI20);
+	  macro_build (ep, "lui", "d,u", reg, BFD_RELOC_RISCV_HI20);
 	  hi_reg = reg;
 	}
 
       if (lower.X_add_number != 0 || hi_reg == 0)
 	macro_build (ep, ADD32_INSN, "d,s,j", reg, hi_reg,
-		     BFD_RELOC_ZPU_LO12_I);
+		     BFD_RELOC_RISCV_LO12_I);
     }
 }
 
 /* Expand RISC-V assembly macros into one or more instructions.  */
 static void
-macro (struct zpu_cl_insn *ip, expressionS *imm_expr,
+macro (struct riscv_cl_insn *ip, expressionS *imm_expr,
        bfd_reloc_code_real_type *imm_reloc)
 {
   int rd = (ip->insn_opcode >> OP_SH_RD) & OP_MASK_RD;
@@ -933,101 +933,101 @@ macro (struct zpu_cl_insn *ip, expressionS *imm_expr,
 
       if (imm_expr->X_op == O_constant)
 	load_const (rd, imm_expr);
-      else if (zpu_opts.pic && mask == M_LA) /* Global PIC symbol */
+      else if (riscv_opts.pic && mask == M_LA) /* Global PIC symbol */
 	pcrel_load (rd, rd, imm_expr, LOAD_ADDRESS_INSN,
-		    BFD_RELOC_ZPU_GOT_HI20, BFD_RELOC_ZPU_PCREL_LO12_I);
+		    BFD_RELOC_RISCV_GOT_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       else /* Local PIC symbol, or any non-PIC symbol */
 	pcrel_load (rd, rd, imm_expr, "addi",
-		    BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_I);
+		    BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       break;
 
     case M_LA_TLS_GD:
       pcrel_load (rd, rd, imm_expr, "addi",
-		  BFD_RELOC_ZPU_TLS_GD_HI20, BFD_RELOC_ZPU_PCREL_LO12_I);
+		  BFD_RELOC_RISCV_TLS_GD_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       break;
 
     case M_LA_TLS_IE:
       pcrel_load (rd, rd, imm_expr, LOAD_ADDRESS_INSN,
-		  BFD_RELOC_ZPU_TLS_GOT_HI20, BFD_RELOC_ZPU_PCREL_LO12_I);
+		  BFD_RELOC_RISCV_TLS_GOT_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       break;
 
     case M_LB:
       pcrel_load (rd, rd, imm_expr, "lb",
-		  BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_I);
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       break;
 
     case M_LBU:
       pcrel_load (rd, rd, imm_expr, "lbu",
-		  BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_I);
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       break;
 
     case M_LH:
       pcrel_load (rd, rd, imm_expr, "lh",
-		  BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_I);
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       break;
 
     case M_LHU:
       pcrel_load (rd, rd, imm_expr, "lhu",
-		  BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_I);
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       break;
 
     case M_LW:
       pcrel_load (rd, rd, imm_expr, "lw",
-		  BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_I);
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       break;
 
     case M_LWU:
       pcrel_load (rd, rd, imm_expr, "lwu",
-		  BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_I);
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       break;
 
     case M_LD:
       pcrel_load (rd, rd, imm_expr, "ld",
-		  BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_I);
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       break;
 
     case M_FLW:
       pcrel_load (rd, rs1, imm_expr, "flw",
-		  BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_I);
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       break;
 
     case M_FLD:
       pcrel_load (rd, rs1, imm_expr, "fld",
-		  BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_I);
+		  BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_I);
       break;
 
     case M_SB:
       pcrel_store (rs2, rs1, imm_expr, "sb",
-		   BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_S);
+		   BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
       break;
 
     case M_SH:
       pcrel_store (rs2, rs1, imm_expr, "sh",
-		   BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_S);
+		   BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
       break;
 
     case M_SW:
       pcrel_store (rs2, rs1, imm_expr, "sw",
-		   BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_S);
+		   BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
       break;
 
     case M_SD:
       pcrel_store (rs2, rs1, imm_expr, "sd",
-		   BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_S);
+		   BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
       break;
 
     case M_FSW:
       pcrel_store (rs2, rs1, imm_expr, "fsw",
-		   BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_S);
+		   BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
       break;
 
     case M_FSD:
       pcrel_store (rs2, rs1, imm_expr, "fsd",
-		   BFD_RELOC_ZPU_PCREL_HI20, BFD_RELOC_ZPU_PCREL_LO12_S);
+		   BFD_RELOC_RISCV_PCREL_HI20, BFD_RELOC_RISCV_PCREL_LO12_S);
       break;
 
     case M_CALL:
-      zpu_call (rd, rs1, imm_expr, *imm_reloc);
+      riscv_call (rd, rs1, imm_expr, *imm_reloc);
       break;
 
     default:
@@ -1038,33 +1038,33 @@ macro (struct zpu_cl_insn *ip, expressionS *imm_expr,
 
 static const struct percent_op_match percent_op_utype[] =
 {
-  {"%tprel_hi", BFD_RELOC_ZPU_TPREL_HI20},
-  {"%pcrel_hi", BFD_RELOC_ZPU_PCREL_HI20},
-  {"%tls_ie_pcrel_hi", BFD_RELOC_ZPU_TLS_GOT_HI20},
-  {"%tls_gd_pcrel_hi", BFD_RELOC_ZPU_TLS_GD_HI20},
-  {"%hi", BFD_RELOC_ZPU_HI20},
+  {"%tprel_hi", BFD_RELOC_RISCV_TPREL_HI20},
+  {"%pcrel_hi", BFD_RELOC_RISCV_PCREL_HI20},
+  {"%tls_ie_pcrel_hi", BFD_RELOC_RISCV_TLS_GOT_HI20},
+  {"%tls_gd_pcrel_hi", BFD_RELOC_RISCV_TLS_GD_HI20},
+  {"%hi", BFD_RELOC_RISCV_HI20},
   {0, 0}
 };
 
 static const struct percent_op_match percent_op_itype[] =
 {
-  {"%lo", BFD_RELOC_ZPU_LO12_I},
-  {"%tprel_lo", BFD_RELOC_ZPU_TPREL_LO12_I},
-  {"%pcrel_lo", BFD_RELOC_ZPU_PCREL_LO12_I},
+  {"%lo", BFD_RELOC_RISCV_LO12_I},
+  {"%tprel_lo", BFD_RELOC_RISCV_TPREL_LO12_I},
+  {"%pcrel_lo", BFD_RELOC_RISCV_PCREL_LO12_I},
   {0, 0}
 };
 
 static const struct percent_op_match percent_op_stype[] =
 {
-  {"%lo", BFD_RELOC_ZPU_LO12_S},
-  {"%tprel_lo", BFD_RELOC_ZPU_TPREL_LO12_S},
-  {"%pcrel_lo", BFD_RELOC_ZPU_PCREL_LO12_S},
+  {"%lo", BFD_RELOC_RISCV_LO12_S},
+  {"%tprel_lo", BFD_RELOC_RISCV_TPREL_LO12_S},
+  {"%pcrel_lo", BFD_RELOC_RISCV_PCREL_LO12_S},
   {0, 0}
 };
 
 static const struct percent_op_match percent_op_rtype[] =
 {
-  {"%tprel_add", BFD_RELOC_ZPU_TPREL_ADD},
+  {"%tprel_add", BFD_RELOC_RISCV_TPREL_ADD},
   {0, 0}
 };
 
@@ -1178,13 +1178,13 @@ my_getSmallExpression (expressionS *ep, bfd_reloc_code_real_type *reloc,
    relocation to do if one of the operands is an address expression.  */
 
 static const char *
-zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
+riscv_ip (char *str, struct riscv_cl_insn *ip, expressionS *imm_expr,
 	  bfd_reloc_code_real_type *imm_reloc)
 {
   char *s;
   const char *args;
   char c = 0;
-  struct zpu_opcode *insn;
+  struct riscv_opcode *insn;
   char *argsStart;
   unsigned int regno;
   char save_c = 0;
@@ -1202,12 +1202,12 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
 	break;
       }
 
-  insn = (struct zpu_opcode *) hash_find (op_hash, str);
+  insn = (struct riscv_opcode *) hash_find (op_hash, str);
 
   argsStart = s;
   for ( ; insn && insn->name && strcmp (insn->name, str) == 0; insn++)
     {
-      if (!zpu_subset_supports (insn->subset))
+      if (!riscv_subset_supports (insn->subset))
 	continue;
 
       create_insn (ip, insn);
@@ -1227,7 +1227,7 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
 		{
 		  if (!insn->match_func (insn, ip->insn_opcode))
 		    break;
-		  if (zpu_insn_length (insn->match) == 2 && !zpu_opts.rvc)
+		  if (riscv_insn_length (insn->match) == 2 && !riscv_opts.rvc)
 		    break;
 		}
 	      if (*s != '\0')
@@ -1390,21 +1390,21 @@ rvc_imm_done:
 rvc_lui:
 		  if (imm_expr->X_op != O_constant
 		      || imm_expr->X_add_number <= 0
-		      || imm_expr->X_add_number >= ZPU_BIGIMM_REACH
-		      || (imm_expr->X_add_number >= ZPU_RVC_IMM_REACH / 2
+		      || imm_expr->X_add_number >= RISCV_BIGIMM_REACH
+		      || (imm_expr->X_add_number >= RISCV_RVC_IMM_REACH / 2
 			  && (imm_expr->X_add_number <
-			      ZPU_BIGIMM_REACH - ZPU_RVC_IMM_REACH / 2)))
+			      RISCV_BIGIMM_REACH - RISCV_RVC_IMM_REACH / 2)))
 		    break;
 		  ip->insn_opcode |= ENCODE_RVC_IMM (imm_expr->X_add_number);
 		  goto rvc_imm_done;
 		case 'v':
 		  if (my_getSmallExpression (imm_expr, imm_reloc, s, p)
-		      || (imm_expr->X_add_number & (ZPU_IMM_REACH - 1))
+		      || (imm_expr->X_add_number & (RISCV_IMM_REACH - 1))
 		      || ((int32_t)imm_expr->X_add_number
 			  != imm_expr->X_add_number))
 		    break;
 		  imm_expr->X_add_number =
-		    ((uint32_t) imm_expr->X_add_number) >> ZPU_IMM_BITS;
+		    ((uint32_t) imm_expr->X_add_number) >> RISCV_IMM_BITS;
 		  goto rvc_lui;
 		case 'p':
 		  goto branch;
@@ -1491,7 +1491,7 @@ rvc_lui:
 	      continue;
 
 	    case 'm':		/* Rounding mode.  */
-	      if (arg_lookup (&s, zpu_rm, ARRAY_SIZE (zpu_rm), &regno))
+	      if (arg_lookup (&s, riscv_rm, ARRAY_SIZE (riscv_rm), &regno))
 		{
 		  INSERT_OPERAND (RM, *ip, regno);
 		  continue;
@@ -1500,7 +1500,7 @@ rvc_lui:
 
 	    case 'P':
 	    case 'Q':		/* Fence predecessor/successor.  */
-	      if (arg_lookup (&s, zpu_pred_succ, ARRAY_SIZE (zpu_pred_succ),
+	      if (arg_lookup (&s, riscv_pred_succ, ARRAY_SIZE (riscv_pred_succ),
 			      &regno))
 		{
 		  if (*args == 'P')
@@ -1591,16 +1591,16 @@ rvc_lui:
 	      continue;
 
 	    case 'j': /* Sign-extended immediate.  */
-	      *imm_reloc = BFD_RELOC_ZPU_LO12_I;
+	      *imm_reloc = BFD_RELOC_RISCV_LO12_I;
 	      p = percent_op_itype;
 	      goto alu_op;
 	    case 'q': /* Store displacement.  */
 	      p = percent_op_stype;
-	      *imm_reloc = BFD_RELOC_ZPU_LO12_S;
+	      *imm_reloc = BFD_RELOC_RISCV_LO12_S;
 	      goto load_store;
 	    case 'o': /* Load displacement.  */
 	      p = percent_op_itype;
-	      *imm_reloc = BFD_RELOC_ZPU_LO12_I;
+	      *imm_reloc = BFD_RELOC_RISCV_LO12_I;
 	      goto load_store;
 	    case '0': /* AMO "displacement," which must be zero.  */
 	      p = percent_op_rtype;
@@ -1622,8 +1622,8 @@ alu_op:
 		  normalize_constant_expr (imm_expr);
 		  if (imm_expr->X_op != O_constant
 		      || (*args == '0' && imm_expr->X_add_number != 0)
-		      || imm_expr->X_add_number >= (signed)ZPU_IMM_REACH/2
-		      || imm_expr->X_add_number < -(signed)ZPU_IMM_REACH/2)
+		      || imm_expr->X_add_number >= (signed)RISCV_IMM_REACH/2
+		      || imm_expr->X_add_number < -(signed)RISCV_IMM_REACH/2)
 		    break;
 		}
 
@@ -1643,11 +1643,11 @@ branch:
 		  && imm_expr->X_op == O_constant)
 		{
 		  if (imm_expr->X_add_number < 0
-		      || imm_expr->X_add_number >= (signed)ZPU_BIGIMM_REACH)
+		      || imm_expr->X_add_number >= (signed)RISCV_BIGIMM_REACH)
 		    as_bad (_("lui expression not in range 0..1048575"));
 
-		  *imm_reloc = BFD_RELOC_ZPU_HI20;
-		  imm_expr->X_add_number <<= ZPU_IMM_BITS;
+		  *imm_reloc = BFD_RELOC_RISCV_HI20;
+		  imm_expr->X_add_number <<= RISCV_IMM_BITS;
 		}
 	      s = expr_end;
 	      continue;
@@ -1656,7 +1656,7 @@ branch:
 jump:
 	      my_getExpression (imm_expr, s);
 	      s = expr_end;
-	      *imm_reloc = BFD_RELOC_ZPU_JMP;
+	      *imm_reloc = BFD_RELOC_RISCV_JMP;
 	      continue;
 
 	    case 'c':
@@ -1664,11 +1664,11 @@ jump:
 	      s = expr_end;
 	      if (strcmp (s, "@plt") == 0)
 		{
-		  *imm_reloc = BFD_RELOC_ZPU_CALL_PLT;
+		  *imm_reloc = BFD_RELOC_RISCV_CALL_PLT;
 		  s += 4;
 		}
 	      else
-		*imm_reloc = BFD_RELOC_ZPU_CALL;
+		*imm_reloc = BFD_RELOC_RISCV_CALL;
 	      continue;
 
 	    default:
@@ -1691,11 +1691,11 @@ out:
 void
 md_assemble (char *str)
 {
-  struct zpu_cl_insn insn;
+  struct riscv_cl_insn insn;
   expressionS imm_expr;
   bfd_reloc_code_real_type imm_reloc = BFD_RELOC_UNUSED;
 
-  const char *error = zpu_ip (str, &insn, &imm_expr, &imm_reloc);
+  const char *error = riscv_ip (str, &insn, &imm_expr, &imm_reloc);
 
   if (error)
     {
@@ -1754,7 +1754,7 @@ enum float_abi {
 static enum float_abi float_abi = FLOAT_ABI_DEFAULT;
 
 static void
-zpu_set_abi (unsigned new_xlen, enum float_abi new_float_abi)
+riscv_set_abi (unsigned new_xlen, enum float_abi new_float_abi)
 {
   abi_xlen = new_xlen;
   float_abi = new_float_abi;
@@ -1766,34 +1766,34 @@ md_parse_option (int c, const char *arg)
   switch (c)
     {
     case OPTION_MARCH:
-      zpu_set_arch (arg);
+      riscv_set_arch (arg);
       break;
 
     case OPTION_NO_PIC:
-      zpu_opts.pic = FALSE;
+      riscv_opts.pic = FALSE;
       break;
 
     case OPTION_PIC:
-      zpu_opts.pic = TRUE;
+      riscv_opts.pic = TRUE;
       break;
 
     case OPTION_MABI:
       if (strcmp (arg, "ilp32") == 0)
-	zpu_set_abi (32, FLOAT_ABI_SOFT);
+	riscv_set_abi (32, FLOAT_ABI_SOFT);
       else if (strcmp (arg, "ilp32f") == 0)
-	zpu_set_abi (32, FLOAT_ABI_SINGLE);
+	riscv_set_abi (32, FLOAT_ABI_SINGLE);
       else if (strcmp (arg, "ilp32d") == 0)
-	zpu_set_abi (32, FLOAT_ABI_DOUBLE);
+	riscv_set_abi (32, FLOAT_ABI_DOUBLE);
       else if (strcmp (arg, "ilp32q") == 0)
-	zpu_set_abi (32, FLOAT_ABI_QUAD);
+	riscv_set_abi (32, FLOAT_ABI_QUAD);
       else if (strcmp (arg, "lp64") == 0)
-	zpu_set_abi (64, FLOAT_ABI_SOFT);
+	riscv_set_abi (64, FLOAT_ABI_SOFT);
       else if (strcmp (arg, "lp64f") == 0)
-	zpu_set_abi (64, FLOAT_ABI_SINGLE);
+	riscv_set_abi (64, FLOAT_ABI_SINGLE);
       else if (strcmp (arg, "lp64d") == 0)
-	zpu_set_abi (64, FLOAT_ABI_DOUBLE);
+	riscv_set_abi (64, FLOAT_ABI_DOUBLE);
       else if (strcmp (arg, "lp64q") == 0)
-	zpu_set_abi (64, FLOAT_ABI_QUAD);
+	riscv_set_abi (64, FLOAT_ABI_QUAD);
       else
 	return 0;
       break;
@@ -1806,27 +1806,27 @@ md_parse_option (int c, const char *arg)
 }
 
 void
-zpu_after_parse_args (void)
+riscv_after_parse_args (void)
 {
   if (xlen == 0)
     {
-      if (strcmp (default_arch, "zpu") == 0)
+      if (strcmp (default_arch, "riscv32") == 0)
 	xlen = 32;
-      else if (strcmp (default_arch, "zpu") == 0)
+      else if (strcmp (default_arch, "riscv64") == 0)
 	xlen = 64;
       else
 	as_bad ("unknown default architecture `%s'", default_arch);
     }
 
-  if (zpu_subsets == NULL)
-    zpu_set_arch (xlen == 64 ? "rv64g" : "rv32g");
+  if (riscv_subsets == NULL)
+    riscv_set_arch (xlen == 64 ? "rv64g" : "rv32g");
 
   /* Add the RVC extension, regardless of -march, to support .option rvc.  */
-  zpu_set_rvc (FALSE);
-  if (zpu_subset_supports ("c"))
-    zpu_set_rvc (TRUE);
+  riscv_set_rvc (FALSE);
+  if (riscv_subset_supports ("c"))
+    riscv_set_rvc (TRUE);
   else
-    zpu_add_subset ("c");
+    riscv_add_subset ("c");
 
   /* Infer ABI from ISA if not specified on command line.  */
   if (abi_xlen == 0)
@@ -1838,12 +1838,12 @@ zpu_after_parse_args (void)
 
   if (float_abi == FLOAT_ABI_DEFAULT)
     {
-      struct zpu_subset *subset;
+      struct riscv_subset *subset;
 
       /* Assume soft-float unless D extension is present.  */
       float_abi = FLOAT_ABI_SOFT;
 
-      for (subset = zpu_subsets; subset != NULL; subset = subset->next)
+      for (subset = riscv_subsets; subset != NULL; subset = subset->next)
 	{
 	  if (strcasecmp (subset->name, "D") == 0)
 	    float_abi = FLOAT_ABI_DOUBLE;
@@ -1852,8 +1852,8 @@ zpu_after_parse_args (void)
 	}
     }
 
-  /* Insert float_abi into the EF_ZPU_FLOAT_ABI field of elf_flags.  */
-  elf_flags |= float_abi * (EF_ZPU_FLOAT_ABI & ~(EF_ZPU_FLOAT_ABI << 1));
+  /* Insert float_abi into the EF_RISCV_FLOAT_ABI field of elf_flags.  */
+  elf_flags |= float_abi * (EF_RISCV_FLOAT_ABI & ~(EF_RISCV_FLOAT_ABI << 1));
 }
 
 long
@@ -1877,40 +1877,40 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 
   switch (fixP->fx_r_type)
     {
-    case BFD_RELOC_ZPU_HI20:
-    case BFD_RELOC_ZPU_LO12_I:
-    case BFD_RELOC_ZPU_LO12_S:
-      bfd_putl32 (zpu_apply_const_reloc (fixP->fx_r_type, *valP)
+    case BFD_RELOC_RISCV_HI20:
+    case BFD_RELOC_RISCV_LO12_I:
+    case BFD_RELOC_RISCV_LO12_S:
+      bfd_putl32 (riscv_apply_const_reloc (fixP->fx_r_type, *valP)
 		  | bfd_getl32 (buf), buf);
       if (fixP->fx_addsy == NULL)
 	fixP->fx_done = TRUE;
       relaxable = TRUE;
       break;
 
-    case BFD_RELOC_ZPU_GOT_HI20:
-    case BFD_RELOC_ZPU_ADD8:
-    case BFD_RELOC_ZPU_ADD16:
-    case BFD_RELOC_ZPU_ADD32:
-    case BFD_RELOC_ZPU_ADD64:
-    case BFD_RELOC_ZPU_SUB6:
-    case BFD_RELOC_ZPU_SUB8:
-    case BFD_RELOC_ZPU_SUB16:
-    case BFD_RELOC_ZPU_SUB32:
-    case BFD_RELOC_ZPU_SUB64:
-    case BFD_RELOC_ZPU_RELAX:
+    case BFD_RELOC_RISCV_GOT_HI20:
+    case BFD_RELOC_RISCV_ADD8:
+    case BFD_RELOC_RISCV_ADD16:
+    case BFD_RELOC_RISCV_ADD32:
+    case BFD_RELOC_RISCV_ADD64:
+    case BFD_RELOC_RISCV_SUB6:
+    case BFD_RELOC_RISCV_SUB8:
+    case BFD_RELOC_RISCV_SUB16:
+    case BFD_RELOC_RISCV_SUB32:
+    case BFD_RELOC_RISCV_SUB64:
+    case BFD_RELOC_RISCV_RELAX:
       break;
 
-    case BFD_RELOC_ZPU_TPREL_HI20:
-    case BFD_RELOC_ZPU_TPREL_LO12_I:
-    case BFD_RELOC_ZPU_TPREL_LO12_S:
-    case BFD_RELOC_ZPU_TPREL_ADD:
+    case BFD_RELOC_RISCV_TPREL_HI20:
+    case BFD_RELOC_RISCV_TPREL_LO12_I:
+    case BFD_RELOC_RISCV_TPREL_LO12_S:
+    case BFD_RELOC_RISCV_TPREL_ADD:
       relaxable = TRUE;
       /* Fall through.  */
 
-    case BFD_RELOC_ZPU_TLS_GOT_HI20:
-    case BFD_RELOC_ZPU_TLS_GD_HI20:
-    case BFD_RELOC_ZPU_TLS_DTPREL32:
-    case BFD_RELOC_ZPU_TLS_DTPREL64:
+    case BFD_RELOC_RISCV_TLS_GOT_HI20:
+    case BFD_RELOC_RISCV_TLS_GD_HI20:
+    case BFD_RELOC_RISCV_TLS_DTPREL32:
+    case BFD_RELOC_RISCV_TLS_DTPREL64:
       if (fixP->fx_addsy != NULL)
 	S_SET_THREAD_LOCAL (fixP->fx_addsy);
       else
@@ -1922,7 +1922,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     case BFD_RELOC_32:
     case BFD_RELOC_16:
     case BFD_RELOC_8:
-    case BFD_RELOC_ZPU_CFA:
+    case BFD_RELOC_RISCV_CFA:
       if (fixP->fx_addsy && fixP->fx_subsy)
 	{
 	  fixP->fx_next = xmemdup (fixP, sizeof (*fixP), sizeof (*fixP));
@@ -1934,26 +1934,26 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	  switch (fixP->fx_r_type)
 	    {
 	    case BFD_RELOC_64:
-	      fixP->fx_r_type = BFD_RELOC_ZPU_ADD64;
-	      fixP->fx_next->fx_r_type = BFD_RELOC_ZPU_SUB64;
+	      fixP->fx_r_type = BFD_RELOC_RISCV_ADD64;
+	      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB64;
 	      break;
 
 	    case BFD_RELOC_32:
-	      fixP->fx_r_type = BFD_RELOC_ZPU_ADD32;
-	      fixP->fx_next->fx_r_type = BFD_RELOC_ZPU_SUB32;
+	      fixP->fx_r_type = BFD_RELOC_RISCV_ADD32;
+	      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB32;
 	      break;
 
 	    case BFD_RELOC_16:
-	      fixP->fx_r_type = BFD_RELOC_ZPU_ADD16;
-	      fixP->fx_next->fx_r_type = BFD_RELOC_ZPU_SUB16;
+	      fixP->fx_r_type = BFD_RELOC_RISCV_ADD16;
+	      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB16;
 	      break;
 
 	    case BFD_RELOC_8:
-	      fixP->fx_r_type = BFD_RELOC_ZPU_ADD8;
-	      fixP->fx_next->fx_r_type = BFD_RELOC_ZPU_SUB8;
+	      fixP->fx_r_type = BFD_RELOC_RISCV_ADD8;
+	      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB8;
 	      break;
 
-	    case BFD_RELOC_ZPU_CFA:
+	    case BFD_RELOC_RISCV_CFA:
 	      /* Load the byte to get the subtype.  */
 	      subtype = bfd_get_8 (NULL, &((fragS *) (fixP->fx_frag->fr_opcode))->fr_literal[fixP->fx_where]);
 	      loc = fixP->fx_frag->fr_fix - (subtype & 7);
@@ -1962,8 +1962,8 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 		case DW_CFA_advance_loc1:
 		  fixP->fx_where = loc + 1;
 		  fixP->fx_next->fx_where = loc + 1;
-		  fixP->fx_r_type = BFD_RELOC_ZPU_SET8;
-		  fixP->fx_next->fx_r_type = BFD_RELOC_ZPU_SUB8;
+		  fixP->fx_r_type = BFD_RELOC_RISCV_SET8;
+		  fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB8;
 		  break;
 
 		case DW_CFA_advance_loc2:
@@ -1971,8 +1971,8 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 		  fixP->fx_next->fx_size = 2;
 		  fixP->fx_where = loc + 1;
 		  fixP->fx_next->fx_where = loc + 1;
-		  fixP->fx_r_type = BFD_RELOC_ZPU_SET16;
-		  fixP->fx_next->fx_r_type = BFD_RELOC_ZPU_SUB16;
+		  fixP->fx_r_type = BFD_RELOC_RISCV_SET16;
+		  fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB16;
 		  break;
 
 		case DW_CFA_advance_loc4:
@@ -1980,8 +1980,8 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 		  fixP->fx_next->fx_size = 4;
 		  fixP->fx_where = loc;
 		  fixP->fx_next->fx_where = loc;
-		  fixP->fx_r_type = BFD_RELOC_ZPU_SET32;
-		  fixP->fx_next->fx_r_type = BFD_RELOC_ZPU_SUB32;
+		  fixP->fx_r_type = BFD_RELOC_RISCV_SET32;
+		  fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB32;
 		  break;
 
 		default:
@@ -1990,8 +1990,8 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 		      /* DW_CFA_advance_loc */
 		      fixP->fx_frag = (fragS *) fixP->fx_frag->fr_opcode;
 		      fixP->fx_next->fx_frag = fixP->fx_frag;
-		      fixP->fx_r_type = BFD_RELOC_ZPU_SET6;
-		      fixP->fx_next->fx_r_type = BFD_RELOC_ZPU_SUB6;
+		      fixP->fx_r_type = BFD_RELOC_RISCV_SET6;
+		      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_SUB6;
 		    }
 		  else
 		    as_fatal (_("internal error: bad CFA value #%d"), subtype);
@@ -2018,7 +2018,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	}
       break;
 
-    case BFD_RELOC_ZPU_JMP:
+    case BFD_RELOC_RISCV_JMP:
       if (fixP->fx_addsy)
 	{
 	  /* Fill in a tentative value to improve objdump readability.  */
@@ -2038,7 +2038,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	}
       break;
 
-    case BFD_RELOC_ZPU_RVC_BRANCH:
+    case BFD_RELOC_RISCV_RVC_BRANCH:
       if (fixP->fx_addsy)
 	{
 	  /* Fill in a tentative value to improve objdump readability.  */
@@ -2048,7 +2048,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	}
       break;
 
-    case BFD_RELOC_ZPU_RVC_JUMP:
+    case BFD_RELOC_RISCV_RVC_JUMP:
       if (fixP->fx_addsy)
 	{
 	  /* Fill in a tentative value to improve objdump readability.  */
@@ -2058,18 +2058,18 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 	}
       break;
 
-    case BFD_RELOC_ZPU_CALL:
-    case BFD_RELOC_ZPU_CALL_PLT:
+    case BFD_RELOC_RISCV_CALL:
+    case BFD_RELOC_RISCV_CALL_PLT:
       relaxable = TRUE;
       break;
 
-    case BFD_RELOC_ZPU_PCREL_HI20:
-    case BFD_RELOC_ZPU_PCREL_LO12_S:
-    case BFD_RELOC_ZPU_PCREL_LO12_I:
-      relaxable = zpu_opts.relax;
+    case BFD_RELOC_RISCV_PCREL_HI20:
+    case BFD_RELOC_RISCV_PCREL_LO12_S:
+    case BFD_RELOC_RISCV_PCREL_LO12_I:
+      relaxable = riscv_opts.relax;
       break;
 
-    case BFD_RELOC_ZPU_ALIGN:
+    case BFD_RELOC_RISCV_ALIGN:
       break;
 
     default:
@@ -2082,12 +2082,12 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
     as_bad_where (fixP->fx_file, fixP->fx_line,
 		  _("unsupported symbol subtraction"));
 
-  /* Add an R_ZPU_RELAX reloc if the reloc is relaxable.  */
+  /* Add an R_RISCV_RELAX reloc if the reloc is relaxable.  */
   if (relaxable && fixP->fx_tcbit && fixP->fx_addsy != NULL)
     {
       fixP->fx_next = xmemdup (fixP, sizeof (*fixP), sizeof (*fixP));
       fixP->fx_next->fx_addsy = fixP->fx_next->fx_subsy = NULL;
-      fixP->fx_next->fx_r_type = BFD_RELOC_ZPU_RELAX;
+      fixP->fx_next->fx_r_type = BFD_RELOC_RISCV_RELAX;
     }
 }
 
@@ -2095,7 +2095,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
    we insert a fix to relocate it again in link-time.  */
 
 void
-zpu_pre_output_hook (void)
+riscv_pre_output_hook (void)
 {
   const frchainS *frch;
   const asection *s;
@@ -2120,7 +2120,7 @@ zpu_pre_output_hook (void)
 		exp.X_op_symbol = op_symbol;
 
 		fix_new_exp (frag, (int) frag->fr_offset, 1, &exp, 0,
-			     BFD_RELOC_ZPU_CFA);
+			     BFD_RELOC_RISCV_CFA);
 	      }
 	  }
       }
@@ -2129,18 +2129,18 @@ zpu_pre_output_hook (void)
 
 /* This structure is used to hold a stack of .option values.  */
 
-struct zpu_option_stack
+struct riscv_option_stack
 {
-  struct zpu_option_stack *next;
-  struct zpu_set_options options;
+  struct riscv_option_stack *next;
+  struct riscv_set_options options;
 };
 
-static struct zpu_option_stack *zpu_opts_stack;
+static struct riscv_option_stack *riscv_opts_stack;
 
 /* Handle the .option pseudo-op.  */
 
 static void
-s_zpu_option (int x ATTRIBUTE_UNUSED)
+s_riscv_option (int x ATTRIBUTE_UNUSED)
 {
   char *name = input_line_pointer, ch;
 
@@ -2150,37 +2150,37 @@ s_zpu_option (int x ATTRIBUTE_UNUSED)
   *input_line_pointer = '\0';
 
   if (strcmp (name, "rvc") == 0)
-    zpu_set_rvc (TRUE);
+    riscv_set_rvc (TRUE);
   else if (strcmp (name, "norvc") == 0)
-    zpu_set_rvc (FALSE);
+    riscv_set_rvc (FALSE);
   else if (strcmp (name, "pic") == 0)
-    zpu_opts.pic = TRUE;
+    riscv_opts.pic = TRUE;
   else if (strcmp (name, "nopic") == 0)
-    zpu_opts.pic = FALSE;
+    riscv_opts.pic = FALSE;
   else if (strcmp (name, "relax") == 0)
-    zpu_opts.relax = TRUE;
+    riscv_opts.relax = TRUE;
   else if (strcmp (name, "norelax") == 0)
-    zpu_opts.relax = FALSE;
+    riscv_opts.relax = FALSE;
   else if (strcmp (name, "push") == 0)
     {
-      struct zpu_option_stack *s;
+      struct riscv_option_stack *s;
 
-      s = (struct zpu_option_stack *) xmalloc (sizeof *s);
-      s->next = zpu_opts_stack;
-      s->options = zpu_opts;
-      zpu_opts_stack = s;
+      s = (struct riscv_option_stack *) xmalloc (sizeof *s);
+      s->next = riscv_opts_stack;
+      s->options = riscv_opts;
+      riscv_opts_stack = s;
     }
   else if (strcmp (name, "pop") == 0)
     {
-      struct zpu_option_stack *s;
+      struct riscv_option_stack *s;
 
-      s = zpu_opts_stack;
+      s = riscv_opts_stack;
       if (s == NULL)
 	as_bad (_(".option pop with no .option push"));
       else
 	{
-	  zpu_opts = s->options;
-	  zpu_opts_stack = s->next;
+	  riscv_opts = s->options;
+	  riscv_opts_stack = s->next;
 	  free (s);
 	}
     }
@@ -2216,8 +2216,8 @@ s_dtprel (int bytes)
   md_number_to_chars (p, 0, bytes);
   fix_new_exp (frag_now, p - frag_now->fr_literal, bytes, &ex, FALSE,
 	       (bytes == 8
-		? BFD_RELOC_ZPU_TLS_DTPREL64
-		: BFD_RELOC_ZPU_TLS_DTPREL32));
+		? BFD_RELOC_RISCV_TLS_DTPREL64
+		: BFD_RELOC_RISCV_TLS_DTPREL32));
 
   demand_empty_rest_of_line ();
 }
@@ -2232,7 +2232,7 @@ s_bss (int ignore ATTRIBUTE_UNUSED)
 }
 
 static void
-zpu_make_nops (char *buf, bfd_vma bytes)
+riscv_make_nops (char *buf, bfd_vma bytes)
 {
   bfd_vma i = 0;
 
@@ -2251,7 +2251,7 @@ zpu_make_nops (char *buf, bfd_vma bytes)
 
   /* Fill the remainder with 4-byte NOPs.  */
   for ( ; i < bytes; i += 4)
-    md_number_to_chars (buf + i, ZPU_NOP, 4);
+    md_number_to_chars (buf + i, RISCV_NOP, 4);
 }
 
 /* Called from md_do_align.  Used to create an alignment frag in a
@@ -2260,17 +2260,17 @@ zpu_make_nops (char *buf, bfd_vma bytes)
    the correct alignment now because of other linker relaxations.  */
 
 bfd_boolean
-zpu_frag_align_code (int n)
+riscv_frag_align_code (int n)
 {
   bfd_vma bytes = (bfd_vma) 1 << n;
-  bfd_vma min_text_alignment_order = zpu_opts.rvc ? 1 : 2;
+  bfd_vma min_text_alignment_order = riscv_opts.rvc ? 1 : 2;
   bfd_vma min_text_alignment = (bfd_vma) 1 << min_text_alignment_order;
 
   /* First, get back to minimal alignment.  */
   frag_align_code (min_text_alignment_order, 0);
 
-  /* When not relaxing, zpu_handle_align handles code alignment.  */
-  if (!zpu_opts.relax)
+  /* When not relaxing, riscv_handle_align handles code alignment.  */
+  if (!riscv_opts.relax)
     return FALSE;
 
   if (bytes > min_text_alignment)
@@ -2282,10 +2282,10 @@ zpu_frag_align_code (int n)
       ex.X_op = O_constant;
       ex.X_add_number = worst_case_bytes;
 
-      zpu_make_nops (nops, worst_case_bytes);
+      riscv_make_nops (nops, worst_case_bytes);
 
       fix_new_exp (frag_now, nops - frag_now->fr_literal, 0,
-		   &ex, FALSE, BFD_RELOC_ZPU_ALIGN);
+		   &ex, FALSE, BFD_RELOC_RISCV_ALIGN);
     }
 
   return TRUE;
@@ -2294,13 +2294,13 @@ zpu_frag_align_code (int n)
 /* Implement HANDLE_ALIGN.  */
 
 void
-zpu_handle_align (fragS *fragP)
+riscv_handle_align (fragS *fragP)
 {
   switch (fragP->fr_type)
     {
     case rs_align_code:
-      /* When relaxing, zpu_frag_align_code handles code alignment.  */
-      if (!zpu_opts.relax)
+      /* When relaxing, riscv_frag_align_code handles code alignment.  */
+      if (!riscv_opts.relax)
 	{
 	  bfd_signed_vma count = fragP->fr_next->fr_address
 				 - fragP->fr_address - fragP->fr_fix;
@@ -2309,7 +2309,7 @@ zpu_handle_align (fragS *fragP)
 	    break;
 
 	  count &= MAX_MEM_FOR_RS_ALIGN_CODE;
-	  zpu_make_nops (fragP->fr_literal + fragP->fr_fix, count);
+	  riscv_make_nops (fragP->fr_literal + fragP->fr_fix, count);
 	  fragP->fr_var = count;
 	}
       break;
@@ -2344,8 +2344,8 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
       if ((fixp->fx_r_type == BFD_RELOC_16 || fixp->fx_r_type == BFD_RELOC_8)
 	  && fixp->fx_addsy != NULL && fixp->fx_subsy != NULL)
 	{
-	  /* We don't have R_ZPU_8/16, but for this special case,
-	     we can use R_ZPU_ADD8/16 with R_ZPU_SUB8/16.  */
+	  /* We don't have R_RISCV_8/16, but for this special case,
+	     we can use R_RISCV_ADD8/16 with R_RISCV_SUB8/16.  */
 	  return reloc;
 	}
 
@@ -2359,7 +2359,7 @@ tc_gen_reloc (asection *section ATTRIBUTE_UNUSED, fixS *fixp)
 }
 
 int
-zpu_relax_frag (asection *sec, fragS *fragp, long stretch ATTRIBUTE_UNUSED)
+riscv_relax_frag (asection *sec, fragS *fragp, long stretch ATTRIBUTE_UNUSED)
 {
   if (RELAX_BRANCH_P (fragp->fr_subtype))
     {
@@ -2424,7 +2424,7 @@ md_convert_frag_branch (fragS *fragp)
 	  case 2:
 	    /* Just keep the RVC branch.  */
 	    reloc = RELAX_BRANCH_UNCOND (fragp->fr_subtype)
-		    ? BFD_RELOC_ZPU_RVC_JUMP : BFD_RELOC_ZPU_RVC_BRANCH;
+		    ? BFD_RELOC_RISCV_RVC_JUMP : BFD_RELOC_RISCV_RVC_BRANCH;
 	    fixp = fix_new_exp (fragp, buf - (bfd_byte *)fragp->fr_literal,
 				2, &exp, FALSE, reloc);
 	    buf += 2;
@@ -2450,14 +2450,14 @@ md_convert_frag_branch (fragS *fragp)
 jump:
       /* Jump to the target.  */
       fixp = fix_new_exp (fragp, buf - (bfd_byte *)fragp->fr_literal,
-			  4, &exp, FALSE, BFD_RELOC_ZPU_JMP);
+			  4, &exp, FALSE, BFD_RELOC_RISCV_JMP);
       md_number_to_chars ((char *) buf, MATCH_JAL, 4);
       buf += 4;
       break;
 
     case 4:
       reloc = RELAX_BRANCH_UNCOND (fragp->fr_subtype)
-	      ? BFD_RELOC_ZPU_JMP : BFD_RELOC_12_PCREL;
+	      ? BFD_RELOC_RISCV_JMP : BFD_RELOC_12_PCREL;
       fixp = fix_new_exp (fragp, buf - (bfd_byte *)fragp->fr_literal,
 			  4, &exp, FALSE, reloc);
       buf += 4;
@@ -2502,13 +2502,13 @@ RISC-V options:\n\
 
 /* Standard calling conventions leave the CFA at SP on entry.  */
 void
-zpu_cfi_frame_initial_instructions (void)
+riscv_cfi_frame_initial_instructions (void)
 {
   cfi_add_CFA_def_cfa_register (X_SP);
 }
 
 int
-tc_zpu_regname_to_dw2regnum (char *regname)
+tc_riscv_regname_to_dw2regnum (char *regname)
 {
   int reg;
 
@@ -2523,7 +2523,7 @@ tc_zpu_regname_to_dw2regnum (char *regname)
 }
 
 void
-zpu_elf_final_processing (void)
+riscv_elf_final_processing (void)
 {
   elf_elfheader (stdoutput)->e_flags |= elf_flags;
 }
@@ -2532,7 +2532,7 @@ zpu_elf_final_processing (void)
    since these directives break relaxation when used with symbol deltas.  */
 
 static void
-s_zpu_leb128 (int sign)
+s_riscv_leb128 (int sign)
 {
   expressionS exp;
   char *save_in = input_line_pointer;
@@ -2548,26 +2548,26 @@ s_zpu_leb128 (int sign)
 
 /* Pseudo-op table.  */
 
-static const pseudo_typeS zpu_pseudo_table[] =
+static const pseudo_typeS riscv_pseudo_table[] =
 {
   /* RISC-V-specific pseudo-ops.  */
-  {"option", s_zpu_option, 0},
+  {"option", s_riscv_option, 0},
   {"half", cons, 2},
   {"word", cons, 4},
   {"dword", cons, 8},
   {"dtprelword", s_dtprel, 4},
   {"dtpreldword", s_dtprel, 8},
   {"bss", s_bss, 0},
-  {"uleb128", s_zpu_leb128, 0},
-  {"sleb128", s_zpu_leb128, 1},
+  {"uleb128", s_riscv_leb128, 0},
+  {"sleb128", s_riscv_leb128, 1},
 
   { NULL, NULL, 0 },
 };
 
 void
-zpu_pop_insert (void)
+riscv_pop_insert (void)
 {
   extern void pop_insert (const pseudo_typeS *);
 
-  pop_insert (zpu_pseudo_table);
+  pop_insert (riscv_pseudo_table);
 }
