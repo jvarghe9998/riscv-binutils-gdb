@@ -360,6 +360,7 @@ add_relaxed_insn (struct zpu_cl_insn *insn, int max_chars, int var,
 static unsigned
 relaxed_branch_length (fragS *fragp, asection *sec, int update)
 {
+#if JOEV
   int jump, rvc, length = 8;
 
   if (!fragp)
@@ -393,6 +394,7 @@ relaxed_branch_length (fragS *fragp, asection *sec, int update)
     fragp->fr_subtype = RELAX_BRANCH_ENCODE (jump, rvc, length);
 
   return length;
+#endif /* JOEV */
 }
 
 struct regname
@@ -404,8 +406,6 @@ struct regname
 enum reg_class
 {
   RCLASS_GPR,
-  RCLASS_FPR,
-  RCLASS_CSR,
   RCLASS_MAX
 };
 
@@ -496,6 +496,7 @@ arg_lookup (char **s, const char *const *array, size_t size, unsigned *regnop)
 static bfd_boolean
 validate_zpu_insn (const struct zpu_opcode *opc)
 {
+#if JOEV
   const char *p = opc->args;
   char c;
   insn_t used_bits = opc->mask;
@@ -591,6 +592,7 @@ validate_zpu_insn (const struct zpu_opcode *opc)
 	      opc->name, opc->args);
       return FALSE;
     }
+#endif /* JOEV */
   return TRUE;
 }
 
@@ -642,14 +644,12 @@ md_begin (void)
 
   reg_names_hash = hash_new ();
   hash_reg_names (RCLASS_GPR, zpu_gpr_names_numeric, NGPR);
-  hash_reg_names (RCLASS_GPR, zpu_gpr_names_abi, NGPR);
-  hash_reg_names (RCLASS_FPR, zpu_fpr_names_numeric, NFPR);
-  hash_reg_names (RCLASS_FPR, zpu_fpr_names_abi, NFPR);
 
+#if JOEV
 #define DECLARE_CSR(name, num) hash_reg_name (RCLASS_CSR, #name, num);
 #include "opcode/zpu-opc.h"
 #undef DECLARE_CSR
-
+#endif /* JOEV */
   /* Set the default alignment for the text section.  */
   record_alignment (text_section, zpu_opts.rvc ? 1 : 2);
 }
@@ -729,6 +729,7 @@ append_insn (struct zpu_cl_insn *ip, expressionS *address_expr,
 static void
 macro_build (expressionS *ep, const char *name, const char *fmt, ...)
 {
+#if JOEV
   const struct zpu_opcode *mo;
   struct zpu_cl_insn insn;
   bfd_reloc_code_real_type r;
@@ -787,8 +788,10 @@ macro_build (expressionS *ep, const char *name, const char *fmt, ...)
   gas_assert (r == BFD_RELOC_UNUSED ? ep == NULL : ep != NULL);
 
   append_insn (&insn, ep, r);
+#endif
 }
 
+#if JOEV
 /* Sign-extend 32-bit mode constants that have bit 31 set and all higher bits
    unset.  */
 static void
@@ -908,12 +911,14 @@ load_const (int reg, expressionS *ep)
 		     BFD_RELOC_ZPU_LO12_I);
     }
 }
+#endif
 
 /* Expand ZPU assembly macros into one or more instructions.  */
 static void
 macro (struct zpu_cl_insn *ip, expressionS *imm_expr,
        bfd_reloc_code_real_type *imm_reloc)
 {
+#if JOEV 
   int rd = (ip->insn_opcode >> OP_SH_RD) & OP_MASK_RD;
   int rs1 = (ip->insn_opcode >> OP_SH_RS1) & OP_MASK_RS1;
   int rs2 = (ip->insn_opcode >> OP_SH_RS2) & OP_MASK_RS2;
@@ -1034,6 +1039,7 @@ macro (struct zpu_cl_insn *ip, expressionS *imm_expr,
       as_bad (_("Macro %s not implemented"), ip->insn_mo->name);
       break;
     }
+#endif
 }
 
 static const struct percent_op_match percent_op_utype[] =
@@ -1192,6 +1198,9 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
   const struct percent_op_match *p;
   const char *error = "unrecognized opcode";
 
+  /* ********* JOEV ****** */
+  printf("Assembly instruction: %s\n", str);
+
   /* Parse the name of the instruction.  Terminate the string if whitespace
      is found so that hash_find only sees the name part of the string.  */
   for (s = str; *s != '\0'; ++s)
@@ -1203,6 +1212,125 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
       }
 
   insn = (struct zpu_opcode *) hash_find (op_hash, str);
+
+  create_insn (ip, insn);
+  argnum = 1;
+
+  imm_expr->X_op = O_absent;
+  *imm_reloc = BFD_RELOC_UNUSED;
+  p = percent_op_itype;
+
+  switch (insn->type) {
+
+  case ZPU_NOP:
+    break;
+
+  case ZPU_ARITH:
+    if (reg_lookup(&s, RCLASS_GPR, &regno)) {
+      INSERT_OPERAND(R10, *ip, regno);
+      s++;
+    } else {
+      as_fatal(_("Unrecognized operand: %s"), s);
+    }
+    if (reg_lookup(&s, RCLASS_GPR, &regno)) {
+      INSERT_OPERAND(R5, *ip, regno);
+      s++;
+    } else {
+      as_fatal(_("Unrecognized operand: %s"), s);
+    }
+    if (reg_lookup(&s, RCLASS_GPR, &regno)) {
+      INSERT_OPERAND(R0, *ip, regno);
+    } else {
+      as_fatal(_("Unrecognized operand: %s"), s);
+    }
+    break;
+
+  case ZPU_ARITHI:
+    if (reg_lookup(&s, RCLASS_GPR, &regno)) {
+      INSERT_OPERAND(R21, *ip, regno);
+      s++;
+    } else {
+      as_fatal(_("Unrecognized operand: %s"), s);
+    }
+    if (reg_lookup(&s, RCLASS_GPR, &regno)) {
+      INSERT_OPERAND(R16, *ip, regno);
+      s++;
+    } else {
+      as_fatal(_("Unrecognized operand: %s"), s);
+    }
+    break;
+
+  case ZPU_LDST:
+    if (reg_lookup(&s, RCLASS_GPR, &regno)) {
+      INSERT_OPERAND(R21, *ip, regno);
+      s++;
+    } else {
+      as_fatal(_("Unrecognized operand: %s"), s);
+    }
+    if (reg_lookup(&s, RCLASS_GPR, &regno)) {
+      INSERT_OPERAND(R16, *ip, regno);
+      s++;
+    } else {
+      as_fatal(_("Unrecognized operand: %s"), s);
+    }
+    break;
+
+  case ZPU_MOV:
+    if (reg_lookup(&s, RCLASS_GPR, &regno)) {
+      INSERT_OPERAND(R21, *ip, regno);
+      s++;
+    } else {
+      as_fatal(_("Unrecognized operand: %s"), s);
+    }
+    if (reg_lookup(&s, RCLASS_GPR, &regno)) {
+      INSERT_OPERAND(R16, *ip, regno);
+      s++;
+    } else {
+      as_fatal(_("Unrecognized operand: %s"), s);
+    }
+    break;
+
+  case ZPU_MOVP:
+    if (reg_lookup(&s, RCLASS_GPR, &regno)) {
+      INSERT_OPERAND(R21, *ip, regno);
+      s++;
+    } else {
+      as_fatal(_("Unrecognized operand: %s"), s);
+    }
+    break;
+
+  case ZPU_JMP:
+    break;
+
+  case ZPU_CALL:
+    if (reg_lookup(&s, RCLASS_GPR, &regno)) {
+      INSERT_OPERAND(R21, *ip, regno);
+      s++;
+    } else {
+      as_fatal(_("Unrecognized operand: %s"), s);
+    }
+    my_getExpression(imm_expr, s);
+    /*******JOEV*******/
+    printf("Found symbol: %s %d %d\n",  imm_expr->X_add_symbol->bsym->name, imm_expr->X_op, imm_expr->X_add_number);
+    *imm_reloc = BFD_RELOC_ZPU_CALL;
+    break;
+
+  case ZPU_RET:
+    if (reg_lookup(&s, RCLASS_GPR, &regno)) {
+      INSERT_OPERAND(R21, *ip, regno);
+      s++;
+    } else {
+      as_fatal(_("Unrecognized operand: %s"), s);
+    }    
+    break;
+
+  default:
+    as_fatal(_("Unrecognized instruction type: %s"), str);
+    break;
+  }
+  printf("Encoded operand: 0x%x\n", ip->insn_opcode);
+
+#if JOEV
 
   argsStart = s;
   for ( ; insn && insn->name && strcmp (insn->name, str) == 0; insn++)
@@ -1684,7 +1812,8 @@ out:
   /* Restore the character we might have clobbered above.  */
   if (save_c)
     *(argsStart - 1) = save_c;
-
+#endif
+  error = NULL;
   return error;
 }
 
@@ -1705,8 +1834,9 @@ md_assemble (char *str)
 
   if (insn.insn_mo->pinfo == INSN_MACRO)
     macro (&insn, &imm_expr, &imm_reloc);
-  else
+  else {
     append_insn (&insn, &imm_expr, imm_reloc);
+  }
 }
 
 const char *
@@ -1867,6 +1997,7 @@ md_pcrel_from (fixS *fixP)
 void
 md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 {
+#if JOEV
   unsigned int subtype;
   bfd_byte *buf = (bfd_byte *) (fixP->fx_frag->fr_literal + fixP->fx_where);
   bfd_boolean relaxable = FALSE;
@@ -2089,6 +2220,7 @@ md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
       fixP->fx_next->fx_addsy = fixP->fx_next->fx_subsy = NULL;
       fixP->fx_next->fx_r_type = BFD_RELOC_ZPU_RELAX;
     }
+#endif /* JOEV */
 }
 
 /* Because the value of .cfi_remember_state may changed after relaxation,
@@ -2234,6 +2366,7 @@ s_bss (int ignore ATTRIBUTE_UNUSED)
 static void
 zpu_make_nops (char *buf, bfd_vma bytes)
 {
+#if JOEV
   bfd_vma i = 0;
 
   /* ZPU instructions cannot begin or end on odd addresses, so this case
@@ -2252,6 +2385,7 @@ zpu_make_nops (char *buf, bfd_vma bytes)
   /* Fill the remainder with 4-byte NOPs.  */
   for ( ; i < bytes; i += 4)
     md_number_to_chars (buf + i, ZPU_NOP, 4);
+#endif
 }
 
 /* Called from md_do_align.  Used to create an alignment frag in a
@@ -2262,6 +2396,7 @@ zpu_make_nops (char *buf, bfd_vma bytes)
 bfd_boolean
 zpu_frag_align_code (int n)
 {
+#if JOEV
   bfd_vma bytes = (bfd_vma) 1 << n;
   bfd_vma min_text_alignment_order = zpu_opts.rvc ? 1 : 2;
   bfd_vma min_text_alignment = (bfd_vma) 1 << min_text_alignment_order;
@@ -2287,6 +2422,7 @@ zpu_frag_align_code (int n)
       fix_new_exp (frag_now, nops - frag_now->fr_literal, 0,
 		   &ex, FALSE, BFD_RELOC_ZPU_ALIGN);
     }
+#endif /* JOEV */
 
   return TRUE;
 }
@@ -2376,6 +2512,7 @@ zpu_relax_frag (asection *sec, fragS *fragp, long stretch ATTRIBUTE_UNUSED)
 static void
 md_convert_frag_branch (fragS *fragp)
 {
+#if JOEV
   bfd_byte *buf;
   expressionS exp;
   fixS *fixp;
@@ -2475,6 +2612,7 @@ done:
 	      + fragp->fr_fix + fragp->fr_var);
 
   fragp->fr_fix += fragp->fr_var;
+#endif /* JOEV */
 }
 
 /* Relax a machine dependent frag.  This returns the amount by which
@@ -2504,12 +2642,15 @@ ZPU options:\n\
 void
 zpu_cfi_frame_initial_instructions (void)
 {
+#if JOEV
   cfi_add_CFA_def_cfa_register (X_SP);
+#endif /* JOEV */
 }
 
 int
 tc_zpu_regname_to_dw2regnum (char *regname)
 {
+#if JOEV
   int reg;
 
   if ((reg = reg_lookup_internal (regname, RCLASS_GPR)) >= 0)
@@ -2519,6 +2660,7 @@ tc_zpu_regname_to_dw2regnum (char *regname)
     return reg + 32;
 
   as_bad (_("unknown register `%s'"), regname);
+#endif /* JOEV */
   return -1;
 }
 

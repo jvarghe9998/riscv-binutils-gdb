@@ -185,6 +185,7 @@ zpu_elf_got_plt_val (bfd_vma plt_index, struct bfd_link_info *info)
 static void
 zpu_make_plt_header (bfd_vma gotplt_addr, bfd_vma addr, uint32_t *entry)
 {
+#ifdef JOEV
   bfd_vma gotplt_offset_high = ZPU_PCREL_HIGH_PART (gotplt_addr, addr);
   bfd_vma gotplt_offset_low = ZPU_PCREL_LOW_PART (gotplt_addr, addr);
 
@@ -205,6 +206,7 @@ zpu_make_plt_header (bfd_vma gotplt_addr, bfd_vma addr, uint32_t *entry)
   entry[5] = ZPU_ITYPE (SRLI, X_T1, X_T1, 4 - ZPU_ELF_LOG_WORD_BYTES);
   entry[6] = ZPU_ITYPE (LREG, X_T0, X_T0, ZPU_ELF_WORD_BYTES);
   entry[7] = ZPU_ITYPE (JALR, 0, X_T3, 0);
+#endif
 }
 
 /* Generate a PLT entry.  */
@@ -217,10 +219,12 @@ zpu_make_plt_entry (bfd_vma got, bfd_vma addr, uint32_t *entry)
      jalr   t1, t3
      nop */
 
+#ifdef JOEV
   entry[0] = ZPU_UTYPE (AUIPC, X_T3, ZPU_PCREL_HIGH_PART (got, addr));
   entry[1] = ZPU_ITYPE (LREG,  X_T3, X_T3, ZPU_PCREL_LOW_PART (got, addr));
   entry[2] = ZPU_ITYPE (JALR, X_T1, X_T3, 0);
   entry[3] = ZPU_NOP;
+#endif
 }
 
 /* Create an entry in an RISC-V ELF linker hash table.  */
@@ -1480,6 +1484,7 @@ perform_relocation (const reloc_howto_type *howto,
 		    bfd *input_bfd,
 		    bfd_byte *contents)
 {
+#if JOEV
   if (howto->pc_relative)
     value -= sec_addr (input_section) + rel->r_offset;
   value += rel->r_addend;
@@ -1582,6 +1587,7 @@ perform_relocation (const reloc_howto_type *howto,
   bfd_put (howto->bitsize, input_bfd, word, contents + rel->r_offset);
 
   return bfd_reloc_ok;
+#endif
 }
 
 /* Remember all PC-relative high-part relocs we've encountered to help us
@@ -1833,6 +1839,7 @@ zpu_elf_relocate_section (bfd *output_bfd,
 
       switch (r_type)
 	{
+#ifdef JOEV
 	case R_ZPU_NONE:
 	case R_ZPU_RELAX:
 	case R_ZPU_TPREL_ADD:
@@ -2221,6 +2228,7 @@ zpu_elf_relocate_section (bfd *output_bfd,
 
 	default:
 	  r = bfd_reloc_notsupported;
+#endif /* JOEV */
 	}
 
       /* Dynamic relocs are not propagated for SEC_DEBUGGING sections
@@ -2853,6 +2861,7 @@ _bfd_zpu_relax_call (bfd *abfd, asection *sec, asection *sym_sec,
 		       bfd_boolean *again,
 		       zpu_pcgp_relocs *pcgp_relocs ATTRIBUTE_UNUSED)
 {
+#if JOEV
   bfd_byte *contents = elf_section_data (sec)->this_hdr.contents;
   bfd_signed_vma foff = symval - (sec_addr (sec) + rel->r_offset);
   bfd_boolean near_zero = (symval + ZPU_IMM_REACH/2) < ZPU_IMM_REACH;
@@ -2904,6 +2913,7 @@ _bfd_zpu_relax_call (bfd *abfd, asection *sec, asection *sym_sec,
   /* Delete unnecessary JALR.  */
   *again = TRUE;
   return zpu_relax_delete_bytes (abfd, sec, rel->r_offset + len, 8 - len);
+#endif
 }
 
 /* Traverse all output sections and return the max alignment.  */
@@ -2937,6 +2947,7 @@ _bfd_zpu_relax_lui (bfd *abfd,
 		      bfd_boolean *again,
 		      zpu_pcgp_relocs *pcgp_relocs ATTRIBUTE_UNUSED)
 {
+#ifdef JOEV
   bfd_byte *contents = elf_section_data (sec)->this_hdr.contents;
   bfd_vma gp = zpu_global_pointer_value (link_info);
   int use_rvc = elf_elfheader (abfd)->e_flags & EF_ZPU_RVC;
@@ -3011,6 +3022,7 @@ _bfd_zpu_relax_lui (bfd *abfd,
     }
 
   return TRUE;
+#endif /* JOEV */
 }
 
 /* Relax non-PIC TLS references.  */
@@ -3027,6 +3039,7 @@ _bfd_zpu_relax_tls_le (bfd *abfd,
 			 bfd_boolean *again,
 			 zpu_pcgp_relocs *prcel_relocs ATTRIBUTE_UNUSED)
 {
+#ifdef JOEV
   /* See if this symbol is in range of tp.  */
   if (ZPU_CONST_HIGH_PART (tpoff (link_info, symval)) != 0)
     return TRUE;
@@ -3052,6 +3065,7 @@ _bfd_zpu_relax_tls_le (bfd *abfd,
     default:
       abort ();
     }
+#endif
 }
 
 /* Implement R_ZPU_ALIGN by deleting excess alignment NOPs.  */
@@ -3067,6 +3081,7 @@ _bfd_zpu_relax_align (bfd *abfd, asection *sec,
 			bfd_boolean *again ATTRIBUTE_UNUSED,
 			zpu_pcgp_relocs *pcrel_relocs ATTRIBUTE_UNUSED)
 {
+#ifdef JOEV
   bfd_byte *contents = elf_section_data (sec)->this_hdr.contents;
   bfd_vma alignment = 1, pos;
   while (alignment <= rel->r_addend)
@@ -3101,6 +3116,7 @@ _bfd_zpu_relax_align (bfd *abfd, asection *sec,
   /* Delete the excess bytes.  */
   return zpu_relax_delete_bytes (abfd, sec, rel->r_offset + nop_bytes,
 				   rel->r_addend - nop_bytes);
+#endif
 }
 
 /* Relax PC-relative references to GP-relative references.  */
@@ -3117,6 +3133,7 @@ _bfd_zpu_relax_pc  (bfd *abfd,
 		      bfd_boolean *again ATTRIBUTE_UNUSED,
 		      zpu_pcgp_relocs *pcgp_relocs)
 {
+#ifdef JOEV
   bfd_vma gp = zpu_global_pointer_value (link_info);
 
   BFD_ASSERT (rel->r_offset + 4 <= sec->size);
@@ -3211,6 +3228,7 @@ _bfd_zpu_relax_pc  (bfd *abfd,
 	  abort ();
 	}
     }
+#endif /* JOEV */
 
   return TRUE;
 }
@@ -3244,6 +3262,7 @@ _bfd_zpu_relax_section (bfd *abfd, asection *sec,
 			  struct bfd_link_info *info,
 			  bfd_boolean *again)
 {
+#ifdef JOEV
   Elf_Internal_Shdr *symtab_hdr = &elf_symtab_hdr (abfd);
   struct zpu_elf_link_hash_table *htab = zpu_elf_hash_table (info);
   struct bfd_elf_section_data *data = elf_section_data (sec);
@@ -3400,6 +3419,9 @@ fail:
   zpu_free_pcgp_relocs(&pcgp_relocs, abfd, sec);
 
   return ret;
+#else /* JOEV */
+  return TRUE;
+#endif /* JOEV */
 }
 
 #if ARCH_SIZE == 32

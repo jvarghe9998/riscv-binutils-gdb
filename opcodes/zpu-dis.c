@@ -47,8 +47,11 @@ static int no_aliases;	/* If set disassemble as most general inst.  */
 static void
 set_default_zpu_dis_options (void)
 {
+#if JOEV
   zpu_gpr_names = zpu_gpr_names_abi;
   zpu_fpr_names = zpu_fpr_names_abi;
+#endif /* JOEV */
+
   no_aliases = 0;
 }
 
@@ -99,6 +102,7 @@ arg_print (struct disassemble_info *info, unsigned long val,
 static void
 maybe_print_address (struct zpu_private_data *pd, int base_reg, int offset)
 {
+#if JOEV
   if (pd->hi_addr[base_reg] != (bfd_vma)-1)
     {
       pd->print_addr = pd->hi_addr[base_reg] + offset;
@@ -108,13 +112,48 @@ maybe_print_address (struct zpu_private_data *pd, int base_reg, int offset)
     pd->print_addr = pd->gp + offset;
   else if (base_reg == X_TP || base_reg == 0)
     pd->print_addr = offset;
+#endif /* JOEV */
 }
 
 /* Print insn arguments for 32/64-bit code.  */
 
 static void
-print_insn_args (const char *d, insn_t l, bfd_vma pc, disassemble_info *info)
+print_insn_args (enum zpu_inst_type type, insn_t l, bfd_vma pc, disassemble_info *info)
 {
+  printf("inst = 0x%x\n", l);
+  fprintf_ftype print = info->fprintf_func;
+  switch (type) {
+  case ZPU_NOP:
+    break;
+  case ZPU_ARITH:
+    {
+#if 0
+      print (info->stream, "%s,", zpu_gpr_names[EXTRACT_OPERAND(R10, l)]);
+      print (info->stream, "%s,", zpu_gpr_names[EXTRACT_OPERAND(R5, l)]);
+      print (info->stream, "%s", zpu_gpr_names[EXTRACT_OPERAND(R0, l)]);
+#endif
+    }
+    break;
+  case ZPU_ARITHI:
+    break;
+  case ZPU_LDST:
+    break;
+  case ZPU_MOV:
+    break;
+  case ZPU_MOVP:
+    break;
+  case ZPU_JMP:
+    break;
+  case ZPU_CALL :
+    break;
+  case ZPU_RET: 
+    break;
+  default: 
+    break;
+  }
+
+
+#if JOEV
   struct zpu_private_data *pd = info->private_data;
   int rs1 = (l >> OP_SH_RS1) & OP_MASK_RS1;
   int rd = (l >> OP_SH_RD) & OP_MASK_RD;
@@ -346,6 +385,7 @@ print_insn_args (const char *d, insn_t l, bfd_vma pc, disassemble_info *info)
 	  return;
 	}
     }
+#endif /* JOEV */
 }
 
 /* Print the RISC-V instruction at address MEMADDR in debugged memory,
@@ -362,14 +402,15 @@ zpu_disassemble_insn (bfd_vma memaddr, insn_t word, disassemble_info *info)
   struct zpu_private_data *pd;
   int insnlen;
 
-#define OP_HASH_IDX(i) ((i) & (zpu_insn_length (i) == 2 ? 0x3 : OP_MASK_OP))
+#define OP_HASH_IDX(i) ((((i) & (OP_MASK_OP << OP_SH_OP)) >> OP_SH_OP) & OP_MASK_OP)
 
   /* Build a hash table to shorten the search time.  */
   if (! init)
     {
       for (op = zpu_opcodes; op->name; op++)
-	if (!zpu_hash[OP_HASH_IDX (op->match)])
+	if (!zpu_hash[OP_HASH_IDX (op->match)]) {
 	  zpu_hash[OP_HASH_IDX (op->match)] = op;
+	}
 
       init = 1;
     }
@@ -424,16 +465,17 @@ zpu_disassemble_insn (bfd_vma memaddr, insn_t word, disassemble_info *info)
 	  /* Does the opcode match?  */
 	  if (! (op->match_func) (op, word))
 	    continue;
+#if 0
 	  /* Is this a pseudo-instruction and may we print it as such?  */
 	  if (no_aliases && (op->pinfo & INSN_ALIAS))
 	    continue;
 	  /* Is this instruction restricted to a certain value of XLEN?  */
 	  if (isdigit (op->subset[0]) && atoi (op->subset) != xlen)
 	    continue;
-
+#endif
 	  /* It's a match.  */
 	  (*info->fprintf_func) (info->stream, "%s", op->name);
-	  print_insn_args (op->args, word, memaddr, info);
+	  print_insn_args (op->type, word, memaddr, info);
 
 	  /* Try to disassemble multi-instruction addressing sequences.  */
 	  if (pd->print_addr != (bfd_vma)-1)

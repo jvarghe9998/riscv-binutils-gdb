@@ -29,6 +29,7 @@ typedef uint64_t insn_t;
 
 static inline unsigned int zpu_insn_length (insn_t insn)
 {
+#if 0
   if ((insn & 0x3) != 0x3) /* RVC.  */
     return 2;
   if ((insn & 0x1f) != 0x1f) /* Base ISA and extensions in 32-bit space.  */
@@ -39,6 +40,9 @@ static inline unsigned int zpu_insn_length (insn_t insn)
     return 8;
   /* Longer instructions not supported at the moment.  */
   return 2;
+#else
+  return 4;
+#endif
 }
 
 static const char * const zpu_rm[8] =
@@ -52,6 +56,8 @@ static const char * const zpu_pred_succ[16] =
   "i", "iw", "ir", "irw", "io", "iow", "ior", "iorw"
 };
 
+
+
 #define RVC_JUMP_BITS 11
 #define RVC_JUMP_REACH ((1ULL << RVC_JUMP_BITS) * ZPU_JUMP_ALIGN)
 
@@ -59,6 +65,7 @@ static const char * const zpu_pred_succ[16] =
 #define RVC_BRANCH_REACH ((1ULL << RVC_BRANCH_BITS) * ZPU_BRANCH_ALIGN)
 
 #define RV_X(x, s, n)  (((x) >> (s)) & ((1 << (n)) - 1))
+
 #define RV_IMM_SIGN(x) (-(((x) >> 31) & 1))
 
 #define EXTRACT_ITYPE_IMM(x) \
@@ -153,6 +160,7 @@ static const char * const zpu_pred_succ[16] =
 #define VALID_RVC_SDSP_IMM(x) (EXTRACT_RVC_SDSP_IMM(ENCODE_RVC_SDSP_IMM(x)) == (x))
 #define VALID_RVC_B_IMM(x) (EXTRACT_RVC_B_IMM(ENCODE_RVC_B_IMM(x)) == (x))
 #define VALID_RVC_J_IMM(x) (EXTRACT_RVC_J_IMM(ENCODE_RVC_J_IMM(x)) == (x))
+#ifdef JOEV
 
 #define ZPU_RTYPE(insn, rd, rs1, rs2) \
   ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ((rs1) << OP_SH_RS1) | ((rs2) << OP_SH_RS2))
@@ -191,10 +199,31 @@ static const char * const zpu_pred_succ[16] =
 #define ZPU_BRANCH_ALIGN (1 << ZPU_BRANCH_ALIGN_BITS)
 #define ZPU_BRANCH_REACH (ZPU_IMM_REACH * ZPU_BRANCH_ALIGN)
 
+#else
+#define RV_X(x, s, n)  (((x) >> (s)) & ((1 << (n)) - 1))
+#define ENCODE_UTYPE_IMM(x) \
+  (RV_X(x, 12, 20) << 12)
+#define ENCODE_ITYPE_IMM(x) \
+  (RV_X(x, 0, 12) << 20)
+
+#endif /* JOEV */
+
+/* BIS1 Register Fields */
+#define OP_MASK_R0		0x1f
+#define OP_SH_R0			0
+#define OP_MASK_R5		0x1f
+#define OP_SH_R5			5
+#define OP_MASK_R10		0x1f
+#define OP_SH_R10			10
+#define OP_MASK_R16		0x1f
+#define OP_SH_R16			16
+#define OP_MASK_R21		0x1f
+#define OP_SH_R21			21
+
 /* RV fields.  */
 
-#define OP_MASK_OP		0x7f
-#define OP_SH_OP		0
+#define OP_MASK_OP		0x3f
+#define OP_SH_OP		26
 #define OP_MASK_RS2		0x1f
 #define OP_SH_RS2		20
 #define OP_MASK_RS1		0x1f
@@ -203,6 +232,7 @@ static const char * const zpu_pred_succ[16] =
 #define OP_SH_RS3		27
 #define OP_MASK_RD		0x1f
 #define OP_SH_RD		7
+#ifdef JOEV
 #define OP_MASK_SHAMT		0x3f
 #define OP_SH_SHAMT		20
 #define OP_MASK_SHAMTW		0x1f
@@ -217,6 +247,7 @@ static const char * const zpu_pred_succ[16] =
 #define OP_SH_AQ		26
 #define OP_MASK_RL		0x1
 #define OP_SH_RL		25
+
 
 #define OP_MASK_CUSTOM_IMM	0x7f
 #define OP_SH_CUSTOM_IMM	25
@@ -243,6 +274,8 @@ static const char * const zpu_pred_succ[16] =
 #define X_T2 7
 #define X_T3 28
 
+#endif /* JOEV */
+
 #define NGPR 32
 #define NFPR 32
 
@@ -261,16 +294,30 @@ static const char * const zpu_pred_succ[16] =
 #define EXTRACT_OPERAND(FIELD, INSN) \
   EXTRACT_BITS ((INSN), OP_MASK_##FIELD, OP_SH_##FIELD)
 
+/* Argument types */
+enum zpu_inst_type {
+  ZPU_NOP,
+  ZPU_ARITH,
+  ZPU_ARITHI,
+  ZPU_LDST,
+  ZPU_MOV,
+  ZPU_MOVP,
+  ZPU_JMP,
+  ZPU_CALL, 
+  ZPU_RET
+};
+
+
 /* This structure holds information for a particular instruction.  */
 
 struct zpu_opcode
 {
   /* The name of the instruction.  */
   const char *name;
-  /* The ISA subset name (I, M, A, F, D, Xextension).  */
+  /* The ISA subset.  Unused for now */
   const char *subset;
-  /* A string describing the arguments for this instruction.  */
-  const char *args;
+  /* Enum describing the instruction type */
+  enum zpu_inst_type type;
   /* The basic opcode for the instruction.  When assembling, this
      opcode is modified by the arguments to produce the actual opcode
      that is used.  If pinfo is INSN_MACRO, then this is 0.  */
