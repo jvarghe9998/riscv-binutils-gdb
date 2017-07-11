@@ -691,30 +691,15 @@ append_insn (struct zpu_cl_insn *ip, expressionS *address_expr,
       reloc_howto_type *howto;
 
       gas_assert (address_expr);
-      if (reloc_type == BFD_RELOC_12_PCREL
-	  || reloc_type == BFD_RELOC_ZPU_JMP)
-	{
-	  int j = reloc_type == BFD_RELOC_ZPU_JMP;
-	  int best_case = zpu_insn_length (ip->insn_opcode);
-	  unsigned worst_case = relaxed_branch_length (NULL, NULL, 0);
-	  add_relaxed_insn (ip, worst_case, best_case,
-			    RELAX_BRANCH_ENCODE (j, best_case == 2, worst_case),
-			    address_expr->X_add_symbol,
-			    address_expr->X_add_number);
-	  return;
-	}
-      else
-	{
-	  howto = bfd_reloc_type_lookup (stdoutput, reloc_type);
-	  if (howto == NULL)
-	    as_bad (_("Unsupported ZPU relocation number %d"), reloc_type);
+      howto = bfd_reloc_type_lookup (stdoutput, reloc_type);
+      if (howto == NULL)
+	as_bad (_("Unsupported ZPU relocation number %d"), reloc_type);
 
-	  ip->fixp = fix_new_exp (ip->frag, ip->where,
-				  bfd_get_reloc_size (howto),
-				  address_expr, FALSE, reloc_type);
+      ip->fixp = fix_new_exp (ip->frag, ip->where,
+			      bfd_get_reloc_size (howto),
+			      address_expr, FALSE, reloc_type);
 
-	  ip->fixp->fx_tcbit = zpu_opts.relax;
-	}
+      ip->fixp->fx_tcbit = zpu_opts.relax;
     }
 
   add_fixed_insn (ip);
@@ -1042,6 +1027,7 @@ macro (struct zpu_cl_insn *ip, expressionS *imm_expr,
 #endif
 }
 
+#ifdef JOEV
 static const struct percent_op_match percent_op_utype[] =
 {
   {"%tprel_hi", BFD_RELOC_ZPU_TPREL_HI20},
@@ -1073,6 +1059,16 @@ static const struct percent_op_match percent_op_rtype[] =
   {"%tprel_add", BFD_RELOC_ZPU_TPREL_ADD},
   {0, 0}
 };
+#endif
+
+static const struct percent_op_match reloc_op_movp[] =
+{
+  {"%hi", BFD_RELOC_ZPU_HI20},  // FIXME
+  {"%lo", BFD_RELOC_ZPU_LO12_S}, // FIXME
+  {"%sel", BFD_RELOC_ZPU_HI20},  // FIXME
+  {0, 0}
+};
+
 
 /* Return true if *STR points to a relocation operator.  When returning true,
    move *STR over the operator and store its relocation code in *RELOC.
@@ -1218,7 +1214,7 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
 
   imm_expr->X_op = O_absent;
   *imm_reloc = BFD_RELOC_UNUSED;
-  p = percent_op_itype;
+  //p = percent_op_itype;
 
   switch (insn->type) {
 
@@ -1258,6 +1254,12 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
     } else {
       as_fatal(_("Unrecognized operand: %s"), s);
     }
+    my_getExpression(imm_expr, s);
+    if (imm_expr->X_op != O_constant) {
+      as_fatal(_("Unrecognized operand: %s"), s);
+    } else {
+      INSERT_OPERAND(IMMS16, *ip, atoi(s));
+    }
     break;
 
   case ZPU_LDST:
@@ -1272,6 +1274,12 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
       s++;
     } else {
       as_fatal(_("Unrecognized operand: %s"), s);
+    }
+    my_getExpression(imm_expr, s);
+    if (imm_expr->X_op != O_constant) {
+      as_fatal(_("Unrecognized operand: %s"), s);
+    } else {
+      INSERT_OPERAND(IMMS16, *ip, atoi(s));
     }
     break;
 
@@ -1297,9 +1305,22 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
     } else {
       as_fatal(_("Unrecognized operand: %s"), s);
     }
+    my_getSmallExpression(imm_expr, imm_reloc, s, reloc_op_movp);
+    if (imm_expr->X_op == O_constant) {
+      INSERT_OPERAND(IMMU16, *ip, imm_expr->X_add_number);
+    } else {
+      INSERT_OPERAND(IMMU16, *ip, imm_expr->X_add_number);
+    }
     break;
 
   case ZPU_JMP:
+    my_getExpression(imm_expr, s);
+    if (imm_expr->X_op == O_constant) {
+      INSERT_OPERAND(IMMS26, *ip,  imm_expr->X_add_number);
+    } else {
+      INSERT_OPERAND(IMMS26, *ip, imm_expr->X_add_number);
+      *imm_reloc = BFD_RELOC_ZPU_JMP;
+    }
     break;
 
   case ZPU_CALL:
@@ -1310,9 +1331,14 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
       as_fatal(_("Unrecognized operand: %s"), s);
     }
     my_getExpression(imm_expr, s);
-    /*******JOEV*******/
-    printf("Found symbol: %s %d %d\n",  imm_expr->X_add_symbol->bsym->name, imm_expr->X_op, imm_expr->X_add_number);
-    *imm_reloc = BFD_RELOC_ZPU_CALL;
+    if (imm_expr->X_op == O_constant) {
+      INSERT_OPERAND(IMMS21, *ip, imm_expr->X_add_number);
+    } else {
+      if (imm_expr->X_add_number) {
+	INSERT_OPERAND(IMMS21, *ip, imm_expr->X_add_number);
+      }
+      *imm_reloc = BFD_RELOC_ZPU_CALL;
+    }
     break;
 
   case ZPU_RET:
@@ -1832,9 +1858,10 @@ md_assemble (char *str)
       return;
     }
 
-  if (insn.insn_mo->pinfo == INSN_MACRO)
+  if (insn.insn_mo->pinfo == INSN_MACRO) {
+      
     macro (&insn, &imm_expr, &imm_reloc);
-  else {
+  }  else {
     append_insn (&insn, &imm_expr, imm_reloc);
   }
 }

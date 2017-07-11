@@ -115,38 +115,70 @@ maybe_print_address (struct zpu_private_data *pd, int base_reg, int offset)
 #endif /* JOEV */
 }
 
+static void 
+extract_immediate(insn_t inst, unsigned int offset_size, unsigned int signed_p, int* extracted_sign, unsigned int* extracted_offset)
+{
+  unsigned int offset_mask = signed_p? ((1 << (offset_size - 1)) - 1): ((1 << offset_size) - 1);
+  unsigned int sign_mask = (1 << (offset_size - 1));
+
+  *extracted_sign = signed_p?(inst & sign_mask):0;
+  *extracted_offset = inst & offset_mask;
+  if (*extracted_sign && !(*extracted_offset)) {
+    *extracted_offset = offset_mask + 1;
+  } else if (*extracted_sign) {
+    *extracted_offset = ((~(*extracted_offset)) & offset_mask) + 1;
+  }
+}
+
 /* Print insn arguments for 32/64-bit code.  */
 
 static void
 print_insn_args (enum zpu_inst_type type, insn_t l, bfd_vma pc, disassemble_info *info)
 {
-  printf("inst = 0x%x\n", l);
   fprintf_ftype print = info->fprintf_func;
+  unsigned int offset_sign, offset;
   switch (type) {
   case ZPU_NOP:
     break;
   case ZPU_ARITH:
     {
-#if 0
-      print (info->stream, "%s,", zpu_gpr_names[EXTRACT_OPERAND(R10, l)]);
-      print (info->stream, "%s,", zpu_gpr_names[EXTRACT_OPERAND(R5, l)]);
-      print (info->stream, "%s", zpu_gpr_names[EXTRACT_OPERAND(R0, l)]);
-#endif
+      print (info->stream, "\t%s,", zpu_gpr_names_numeric[EXTRACT_OPERAND(R10, l)]);
+      print (info->stream, " %s,", zpu_gpr_names_numeric[EXTRACT_OPERAND(R5, l)]);
+      print (info->stream, " %s", zpu_gpr_names_numeric[EXTRACT_OPERAND(R0, l)]);
     }
     break;
   case ZPU_ARITHI:
+      print (info->stream, "\t%s,", zpu_gpr_names_numeric[EXTRACT_OPERAND(R21, l)]);
+      print (info->stream, " %s,", zpu_gpr_names_numeric[EXTRACT_OPERAND(R16, l)]);
+      extract_immediate(l, 16, 1, &offset_sign, &offset);
+      print(info->stream, " %s%d", offset_sign?"-":"", offset);
     break;
   case ZPU_LDST:
+      print (info->stream, "\t%s,", zpu_gpr_names_numeric[EXTRACT_OPERAND(R21, l)]);
+      print (info->stream, " %s,", zpu_gpr_names_numeric[EXTRACT_OPERAND(R16, l)]);
+      extract_immediate(l, 16, 1, &offset_sign, &offset);
+      print(info->stream, " %s%d", offset_sign?"-":"", offset);
     break;
   case ZPU_MOV:
+      print (info->stream, "\t%s,", zpu_gpr_names_numeric[EXTRACT_OPERAND(R21, l)]);
+      print (info->stream, " %s", zpu_gpr_names_numeric[EXTRACT_OPERAND(R16, l)]);
     break;
   case ZPU_MOVP:
+      print (info->stream, "\t%s,", zpu_gpr_names_numeric[EXTRACT_OPERAND(R21, l)]);
+      extract_immediate(l, 16, 0, &offset_sign, &offset);
+      print(info->stream, " %d", offset);
     break;
   case ZPU_JMP:
+    extract_immediate(l, 26, 1, &offset_sign, &offset);
+    print(info->stream, "\t%s%d", offset_sign?"-":"", offset);
     break;
   case ZPU_CALL :
+      print (info->stream, "\t%s,", zpu_gpr_names_numeric[EXTRACT_OPERAND(R21, l)]);
+      extract_immediate(l, 21, 1, &offset_sign, &offset);
+    print(info->stream, " %s%d", offset_sign?"-":"", offset);
     break;
   case ZPU_RET: 
+      print (info->stream, "\t%s", zpu_gpr_names_numeric[EXTRACT_OPERAND(R21, l)]);
     break;
   default: 
     break;

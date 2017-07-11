@@ -219,7 +219,14 @@ static const char * const zpu_pred_succ[16] =
 #define OP_SH_R16			16
 #define OP_MASK_R21		0x1f
 #define OP_SH_R21			21
-
+#define OP_MASK_IMMS16        0xffff
+#define OP_SH_IMMS16            0
+#define OP_MASK_IMMU16        0xffff
+#define OP_SH_IMMU16            0
+#define OP_MASK_IMMS21        0x1fffff
+#define OP_SH_IMMS21            0
+#define OP_MASK_IMMS26        0x3ffffff
+#define OP_SH_IMMS26            0
 /* RV fields.  */
 
 #define OP_MASK_OP		0x3f
