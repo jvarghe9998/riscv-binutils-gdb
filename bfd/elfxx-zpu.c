@@ -242,7 +242,7 @@ static reloc_howto_type howto_table[] =
 	 "R_ZPU_JAL",			/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
-	 ENCODE_UJTYPE_IMM (-1U),	/* dst_mask */
+	 0x3ffffff    /*ENCODE_UJTYPE_IMM (-1U)*/,	/* dst_mask */
 	 TRUE),				/* pcrel_offset */
 
   /* 32-bit PC-relative function call (AUIPC/JALR).  */
@@ -256,8 +256,9 @@ static reloc_howto_type howto_table[] =
 	 bfd_elf_generic_reloc,		/* special_function */
 	 "R_ZPU_CALL",		/* name */
 	 FALSE,				/* partial_inplace */
-	 0,				/* src_mask */
-	 ENCODE_UTYPE_IMM (-1U) | ((bfd_vma) ENCODE_ITYPE_IMM (-1U) << 32),
+	 0x1fffff,				/* src_mask */
+	 /*ENCODE_UTYPE_IMM (-1U) | ((bfd_vma) ENCODE_ITYPE_IMM (-1U) << 32), */
+	 0x1fffff,
 					/* dst_mask */
 	 TRUE),				/* pcrel_offset */
 
@@ -379,7 +380,7 @@ static reloc_howto_type howto_table[] =
 	 "R_ZPU_HI20",		/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
-	 ENCODE_UTYPE_IMM (-1U),	/* dst_mask */
+	 0xffff /*ENCODE_UTYPE_IMM (-1U)*/,	/* dst_mask */
 	 FALSE),			/* pcrel_offset */
 
   /* High 12 bits of 32-bit load or add.  */
@@ -409,7 +410,7 @@ static reloc_howto_type howto_table[] =
 	 "R_ZPU_LO12_S",		/* name */
 	 FALSE,				/* partial_inplace */
 	 0,				/* src_mask */
-	 ENCODE_STYPE_IMM (-1U),	/* dst_mask */
+	 0xffff /* ENCODE_STYPE_IMM (-1U)*/,	/* dst_mask */
 	 FALSE),			/* pcrel_offset */
 
   /* High 20 bits of TLS LE thread pointer offset.  */

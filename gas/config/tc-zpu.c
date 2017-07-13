@@ -1307,9 +1307,9 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
     }
     my_getSmallExpression(imm_expr, imm_reloc, s, reloc_op_movp);
     if (imm_expr->X_op == O_constant) {
-      INSERT_OPERAND(IMMU16, *ip, imm_expr->X_add_number);
+	INSERT_OPERAND(IMMU16, *ip, imm_expr->X_add_number);
     } else {
-      INSERT_OPERAND(IMMU16, *ip, imm_expr->X_add_number);
+	INSERT_OPERAND(IMMU16, *ip, imm_expr->X_add_number);
     }
     break;
 
