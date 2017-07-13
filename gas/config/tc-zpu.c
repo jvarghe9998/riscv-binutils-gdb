@@ -1194,8 +1194,7 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
   const struct percent_op_match *p;
   const char *error = "unrecognized opcode";
 
-  /* ********* JOEV ****** */
-  printf("Assembly instruction: %s\n", str);
+  //printf("Assembly instruction: %s\n", str);
 
   /* Parse the name of the instruction.  Terminate the string if whitespace
      is found so that hash_find only sees the name part of the string.  */
@@ -1354,7 +1353,7 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
     as_fatal(_("Unrecognized instruction type: %s"), str);
     break;
   }
-  printf("Encoded operand: 0x%x\n", ip->insn_opcode);
+  //printf("Encoded operand: 0x%x\n", ip->insn_opcode);
 
 #if JOEV
 
