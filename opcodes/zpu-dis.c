@@ -420,6 +420,15 @@ print_insn_args (enum zpu_inst_type type, insn_t l, bfd_vma pc, disassemble_info
 #endif /* JOEV */
 }
 
+/* 
+   Instructions need to be converted to little-endian to be able to process on little-endian host 
+ */
+static insn_t  
+swap_bytes_to_little_endian(insn_t i)
+{
+  return (((i & 0xff000000) >> 24) | ((i & 0xff0000) >> 8) | ((i & 0xff00) << 8) | ((i & 0xff) << 24));
+}
+
 /* Print the RISC-V instruction at address MEMADDR in debugged memory,
    on using INFO.  Returns length of the instruction, in bytes.
    BIGENDIAN must be 1 if this is big-endian code, 0 if
@@ -434,6 +443,7 @@ zpu_disassemble_insn (bfd_vma memaddr, insn_t word, disassemble_info *info)
   struct zpu_private_data *pd;
   int insnlen;
 
+  word = swap_bytes_to_little_endian(word);
 #define OP_HASH_IDX(i) ((((i) & (OP_MASK_OP << OP_SH_OP)) >> OP_SH_OP) & OP_MASK_OP)
 
   /* Build a hash table to shorten the search time.  */
@@ -545,7 +555,7 @@ print_insn_zpu (bfd_vma memaddr, struct disassemble_info *info)
   else if (zpu_gpr_names == NULL)
     set_default_zpu_dis_options ();
 
-  /* Instructions are a sequence of 2-byte packets in little-endian order.  */
+  /* Instructions are a sequence of 2-byte packets in big-endian order.  */
   for (n = 0; n < sizeof (insn) && n < zpu_insn_length (insn); n += 2)
     {
       status = (*info->read_memory_func) (memaddr + n, packet, 2, info);

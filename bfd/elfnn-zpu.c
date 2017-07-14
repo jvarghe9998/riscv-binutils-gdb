@@ -1484,13 +1484,20 @@ perform_relocation (const reloc_howto_type *howto,
 		    bfd *input_bfd,
 		    bfd_byte *contents)
 {
-#if JOEV
   if (howto->pc_relative)
     value -= sec_addr (input_section) + rel->r_offset;
   value += rel->r_addend;
 
   switch (ELFNN_R_TYPE (rel->r_info))
     {
+    case R_ZPU_CALL:
+      break;
+
+    case R_ZPU_HI20:
+      value >>= 16;
+      break;
+
+#if JOEV
     case R_ZPU_HI20:
     case R_ZPU_TPREL_HI20:
     case R_ZPU_PCREL_HI20:
@@ -1580,6 +1587,7 @@ perform_relocation (const reloc_howto_type *howto,
 
     default:
       return bfd_reloc_notsupported;
+#endif /* JOEV */
     }
 
   bfd_vma word = bfd_get (howto->bitsize, input_bfd, contents + rel->r_offset);
@@ -1587,7 +1595,6 @@ perform_relocation (const reloc_howto_type *howto,
   bfd_put (howto->bitsize, input_bfd, word, contents + rel->r_offset);
 
   return bfd_reloc_ok;
-#endif
 }
 
 /* Remember all PC-relative high-part relocs we've encountered to help us
@@ -3420,6 +3427,7 @@ fail:
 
   return ret;
 #else /* JOEV */
+  *again = FALSE;
   return TRUE;
 #endif /* JOEV */
 }
@@ -3515,7 +3523,7 @@ static bfd_boolean
 zpu_elf_object_p (bfd *abfd)
 {
   /* There are only two mach types in ZPU currently.  */
-  if (strcmp (abfd->xvec->name, "elf32-littlezpu") == 0)
+  if (strcmp (abfd->xvec->name, "elf32-bigzpu") == 0)
     bfd_default_set_arch_mach (abfd, bfd_arch_zpu, bfd_mach_zpu);
   else
     bfd_default_set_arch_mach (abfd, bfd_arch_zpu, bfd_mach_zpu);
@@ -3524,8 +3532,8 @@ zpu_elf_object_p (bfd *abfd)
 }
 
 
-#define TARGET_LITTLE_SYM		zpu_elfNN_vec
-#define TARGET_LITTLE_NAME		"elfNN-littlezpu"
+#define TARGET_BIG_SYM		zpu_elfNN_vec
+#define TARGET_BIG_NAME		"elfNN-bigzpu"
 
 #define elf_backend_reloc_type_class	     zpu_reloc_type_class
 

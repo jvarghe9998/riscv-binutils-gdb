@@ -287,7 +287,7 @@ static char *expr_end;
 const char *
 zpu_target_format (void)
 {
-  return xlen == 64 ? "elf64-littlezpu" : "elf32-littlezpu";
+  return xlen == 64 ? "elf64-bigzpu" : "elf32-bigzpu";
 }
 
 /* Return the length of instruction INSN.  */
@@ -1868,7 +1868,7 @@ md_atof (int type, char *litP, int *sizeP)
 void
 md_number_to_chars (char *buf, valueT val, int n)
 {
-  number_to_chars_littleendian (buf, val, n);
+  number_to_chars_bigendian (buf, val, n);
 }
 
 const char *md_shortopts = "O::g::G:";

@@ -90,7 +90,7 @@ case ${cpu} in
   powerpc*)		cpu_type=ppc endian=big ;;
   riscv32*)		cpu_type=riscv endian=little arch=riscv32 ;;
   riscv64*)		cpu_type=riscv endian=little arch=riscv64 ;;
-  zpu*)		cpu_type=zpu endian=little arch=zpu ;;
+  zpu*)		cpu_type=zpu endian=big arch=zpu ;;
   rs6000*)		cpu_type=ppc ;;
   rl78*)		cpu_type=rl78 ;;
   rx)			cpu_type=rx ;;
@@ -399,7 +399,7 @@ case ${generic_target} in
   pru-*-*)				fmt=elf ;;
 
   riscv*-*-*)				fmt=elf endian=little ;;
-  zpu*-*-*)				fmt=elf endian=little ;;
+  zpu*-*-*)				fmt=elf endian=big ;;
 
   s390-*-linux-*)			fmt=elf em=linux ;;
   s390-*-tpf*)				fmt=elf ;;

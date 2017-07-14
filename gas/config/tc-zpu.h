@@ -28,7 +28,7 @@
 struct frag;
 struct expressionS;
 
-#define TARGET_BYTES_BIG_ENDIAN 0
+#define TARGET_BYTES_BIG_ENDIAN 1
 
 #define TARGET_ARCH bfd_arch_zpu
 
