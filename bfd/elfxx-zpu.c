@@ -256,7 +256,7 @@ static reloc_howto_type howto_table[] =
 	 bfd_elf_generic_reloc,		/* special_function */
 	 "R_ZPU_CALL",		/* name */
 	 FALSE,				/* partial_inplace */
-	 0x1fffff,				/* src_mask */
+	 0x0,				/* src_mask */
 	 /*ENCODE_UTYPE_IMM (-1U) | ((bfd_vma) ENCODE_ITYPE_IMM (-1U) << 32), */
 	 0x1fffff,
 					/* dst_mask */

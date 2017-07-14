@@ -1494,8 +1494,6 @@ perform_relocation (const reloc_howto_type *howto,
   switch (ELF32_R_TYPE (rel->r_info))
     {
     case R_ZPU_CALL:
-      
-      /*      FIXME: src_value =  word & howto->src_mask; */ // Need to get the addend that is stored somewhere to process labels like "foo+12" 
       break;
 
     case R_ZPU_HI20:
