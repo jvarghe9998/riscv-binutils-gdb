@@ -1307,8 +1307,6 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
     my_getSmallExpression(imm_expr, imm_reloc, s, reloc_op_movp);
     if (imm_expr->X_op == O_constant) {
 	INSERT_OPERAND(IMMU16, *ip, imm_expr->X_add_number);
-    } else {
-	INSERT_OPERAND(IMMU16, *ip, imm_expr->X_add_number);
     }
     break;
 
@@ -1317,7 +1315,6 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
     if (imm_expr->X_op == O_constant) {
       INSERT_OPERAND(IMMS26, *ip,  imm_expr->X_add_number);
     } else {
-      INSERT_OPERAND(IMMS26, *ip, imm_expr->X_add_number);
       *imm_reloc = BFD_RELOC_ZPU_JMP;
     }
     break;
@@ -1333,9 +1330,6 @@ zpu_ip (char *str, struct zpu_cl_insn *ip, expressionS *imm_expr,
     if (imm_expr->X_op == O_constant) {
       INSERT_OPERAND(IMMS21, *ip, imm_expr->X_add_number);
     } else {
-      if (imm_expr->X_add_number) {
-	INSERT_OPERAND(IMMS21, *ip, imm_expr->X_add_number);
-      }
       *imm_reloc = BFD_RELOC_ZPU_CALL;
     }
     break;
@@ -2023,6 +2017,9 @@ md_pcrel_from (fixS *fixP)
 void
 md_apply_fix (fixS *fixP, valueT *valP, segT seg ATTRIBUTE_UNUSED)
 {
+  // This is needed to make expressions like "foo+10" work. Otherwise addend gets lost  --- JOEV
+  //
+  fixP->fx_addnumber = *valP;
 #if JOEV
   unsigned int subtype;
   bfd_byte *buf = (bfd_byte *) (fixP->fx_frag->fr_literal + fixP->fx_where);
