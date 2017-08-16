@@ -53,6 +53,7 @@ const struct zpu_opcode zpu_opcodes[] =
 {
 /* name,      isa,   operands, match, mask, match_func, pinfo.  */
 {"nop", "B", ZPU_NOP, 0x0, OPCODE_MASK, match_opcode, 0},
+{"halt", "B", ZPU_NOP, (0x3f << 26), OPCODE_MASK, match_opcode, 0},
 
 /* Three operand arithmetic instructions */
 {"add", "B", ZPU_ARITH, (0x01 << 26), OPCODE_MASK, match_opcode, 0},
@@ -94,8 +95,8 @@ const struct zpu_opcode zpu_opcodes[] =
 
 /* Jump */
 {"jmp", "B", ZPU_JMP,    (0x30 << 26), OPCODE_MASK, match_opcode, 0},
-{"jmpz", "B", ZPU_JMP,    (0x31 << 26), OPCODE_MASK, match_opcode, 0},
-{"jmpnz", "B", ZPU_JMP,    (0x32 << 26), OPCODE_MASK, match_opcode, 0},
+{"jmpeq", "B", ZPU_JMP,    (0x31 << 26), OPCODE_MASK, match_opcode, 0},
+{"jmpneq", "B", ZPU_JMP,    (0x32 << 26), OPCODE_MASK, match_opcode, 0},
 {"jmpgt", "B", ZPU_JMP,    (0x33 << 26), OPCODE_MASK, match_opcode, 0},
 {"jmplt", "B", ZPU_JMP,    (0x34 << 26), OPCODE_MASK, match_opcode, 0},
 

@@ -249,7 +249,7 @@ static reloc_howto_type howto_table[] =
   HOWTO (R_ZPU_CALL,			/* type */
 	 0,				/* rightshift */
 	 2,				/* size */
-	 64,				/* bitsize */
+	 32,				/* bitsize */
 	 TRUE,				/* pc_relative */
 	 0,				/* bitpos */
 	 complain_overflow_dont,	/* complain_on_overflow */
