@@ -203,6 +203,7 @@ set_zpu_command (char *args, int from_tty)
 static int
 zpu_breakpoint_kind_from_pc (struct gdbarch *gdbarch, CORE_ADDR *pcptr)
 {
+#ifdef JOEV_CLEAN
   if (use_compressed_breakpoints == AUTO_BOOLEAN_AUTO) {
     if (gdbarch_tdep (gdbarch)->supports_compressed_isa == AUTO_BOOLEAN_AUTO)
     {
@@ -210,7 +211,8 @@ zpu_breakpoint_kind_from_pc (struct gdbarch *gdbarch, CORE_ADDR *pcptr)
          breakpoint before connecting to a live target. A suggested workaround is
          to look at the ELF file in this case.  */
       struct frame_info *frame = get_current_frame ();
-      uint32_t misa = get_frame_register_unsigned (frame, ZPU_CSR_MISA_REGNUM);
+      //      uint32_t misa = get_frame_register_unsigned (frame, ZPU_CSR_MISA_REGNUM);
+      uint32_t misa = 0;
       if (misa & (1<<2))
         gdbarch_tdep (gdbarch)->supports_compressed_isa = AUTO_BOOLEAN_TRUE;
       else
@@ -226,6 +228,9 @@ zpu_breakpoint_kind_from_pc (struct gdbarch *gdbarch, CORE_ADDR *pcptr)
   } else {
     return 4;
   }
+#else /* JOEV_CLEAN */
+  return 4;
+#endif /* JOEV_CLEAN */
 }
 
 /* Implement the sw_breakpoint_from_kind gdbarch method.  */
@@ -460,6 +465,7 @@ static struct type *
 zpu_register_type (struct gdbarch *gdbarch,
 		     int regnum)
 {
+#ifdef JOEV_CLEAN
   int regsize = zpu_isa_regsize (gdbarch);
 
   if (regnum < ZPU_FIRST_FP_REGNUM)
@@ -523,6 +529,10 @@ zpu_register_type (struct gdbarch *gdbarch,
 			  _("unknown isa regsize %i"), regsize);
 	}
     }
+#else /* JOEV_CLEAN */
+  return builtin_type (gdbarch)->builtin_uint32;
+#endif /* JOEV_CLEAN */
+
 }
 
 static void
@@ -547,6 +557,7 @@ static void
 zpu_print_register_formatted (struct ui_file *file, struct frame_info *frame,
 				int regnum)
 {
+#ifdef JOEV_CLEAN
   struct gdbarch *gdbarch = get_frame_arch (frame);
   gdb_byte raw_buffer[MAX_REGISTER_SIZE];
   struct value_print_options opts;
@@ -696,6 +707,7 @@ zpu_print_register_formatted (struct ui_file *file, struct frame_info *frame,
 	}
     }
   fprintf_filtered (file, "\n");
+#endif /* JOEV_CLEAN */
 }
 
 /* Implement the register_reggroup_p gdbarch method.  */
@@ -705,6 +717,7 @@ zpu_register_reggroup_p (struct gdbarch  *gdbarch,
 			   int regnum,
 			   struct reggroup *reggroup)
 {
+#ifdef JOEV_CLEAN
   int float_p;
   int raw_p;
   unsigned int i;
@@ -748,6 +761,9 @@ zpu_register_reggroup_p (struct gdbarch  *gdbarch,
     return 0;
   else
     internal_error (__FILE__, __LINE__, _("unhandled reggroup"));
+#else /* JOEV_CLEAN */
+  return 0;
+#endif /* JOEV_CLEAN */
 }
 
 /* Implement the print_registers_info gdbarch method.  */
@@ -885,6 +901,7 @@ zpu_scan_prologue (struct gdbarch *gdbarch,
       imm12 = (inst >> 20) & 0xFFF;
       offset12 = (((inst >> 25) & 0x7F) << 5) + ((inst >> 7) & 0x1F);
 
+#ifdef JOEV_CLEAN 
       /* Look for common stack adjustment insns.  */
       if ((is_addi_insn(inst) || is_addiw_insn(inst))
 	  && reg == ZPU_SP_REGNUM && rs1 == ZPU_SP_REGNUM)
@@ -976,6 +993,7 @@ zpu_scan_prologue (struct gdbarch *gdbarch,
 	  if (end_prologue_addr == 0)
 	    end_prologue_addr = cur_pc;
 	}
+#endif /* JOEV_CLEAN */
     }
 
   if (this_cache != NULL)
