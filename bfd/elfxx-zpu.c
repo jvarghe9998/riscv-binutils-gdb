@@ -262,81 +262,7 @@ static reloc_howto_type howto_table[] =
 					/* dst_mask */
 	 TRUE),				/* pcrel_offset */
 
-  /* Like R_ZPU_CALL, but not locally binding.  */
-  HOWTO (R_ZPU_CALL_PLT,		/* type */
-	 0,				/* rightshift */
-	 2,				/* size */
-	 64,				/* bitsize */
-	 TRUE,				/* pc_relative */
-	 0,				/* bitpos */
-	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
-	 "R_ZPU_CALL_PLT",		/* name */
-	 FALSE,				/* partial_inplace */
-	 0,				/* src_mask */
-	 ENCODE_UTYPE_IMM (-1U) | ((bfd_vma) ENCODE_ITYPE_IMM (-1U) << 32),
-					/* dst_mask */
-	 TRUE),				/* pcrel_offset */
 
-  /* High 20 bits of 32-bit PC-relative GOT access.  */
-  HOWTO (R_ZPU_GOT_HI20,		/* type */
-	 0,				/* rightshift */
-	 2,				/* size */
-	 32,				/* bitsize */
-	 TRUE,				/* pc_relative */
-	 0,				/* bitpos */
-	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
-	 "R_ZPU_GOT_HI20",		/* name */
-	 FALSE,				/* partial_inplace */
-	 0,				/* src_mask */
-	 ENCODE_UTYPE_IMM (-1U),	/* dst_mask */
-	 FALSE),			/* pcrel_offset */
-
-  /* High 20 bits of 32-bit PC-relative TLS IE GOT access.  */
-  HOWTO (R_ZPU_TLS_GOT_HI20,		/* type */
-	 0,				/* rightshift */
-	 2,				/* size */
-	 32,				/* bitsize */
-	 TRUE,				/* pc_relative */
-	 0,				/* bitpos */
-	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
-	 "R_ZPU_TLS_GOT_HI20",	/* name */
-	 FALSE,				/* partial_inplace */
-	 0,				/* src_mask */
-	 ENCODE_UTYPE_IMM (-1U),	/* dst_mask */
-	 FALSE),			/* pcrel_offset */
-
-  /* High 20 bits of 32-bit PC-relative TLS GD GOT reference.  */
-  HOWTO (R_ZPU_TLS_GD_HI20,		/* type */
-	 0,				/* rightshift */
-	 2,				/* size */
-	 32,				/* bitsize */
-	 TRUE,				/* pc_relative */
-	 0,				/* bitpos */
-	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
-	 "R_ZPU_TLS_GD_HI20",		/* name */
-	 FALSE,				/* partial_inplace */
-	 0,				/* src_mask */
-	 ENCODE_UTYPE_IMM (-1U),	/* dst_mask */
-	 FALSE),			/* pcrel_offset */
-
-  /* High 20 bits of 32-bit PC-relative reference.  */
-  HOWTO (R_ZPU_PCREL_HI20,		/* type */
-	 0,				/* rightshift */
-	 2,				/* size */
-	 32,				/* bitsize */
-	 TRUE,				/* pc_relative */
-	 0,				/* bitpos */
-	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
-	 "R_ZPU_PCREL_HI20",		/* name */
-	 FALSE,				/* partial_inplace */
-	 0,				/* src_mask */
-	 ENCODE_UTYPE_IMM (-1U),	/* dst_mask */
-	 TRUE),				/* pcrel_offset */
 
   /* Low 12 bits of a 32-bit PC-relative load or add.  */
   HOWTO (R_ZPU_PCREL_LO12_I,		/* type */
@@ -413,20 +339,6 @@ static reloc_howto_type howto_table[] =
 	 0xffff /* ENCODE_STYPE_IMM (-1U)*/,	/* dst_mask */
 	 FALSE),			/* pcrel_offset */
 
-  /* High 20 bits of TLS LE thread pointer offset.  */
-  HOWTO (R_ZPU_TPREL_HI20,		/* type */
-	 0,				/* rightshift */
-	 2,				/* size */
-	 32,				/* bitsize */
-	 FALSE,				/* pc_relative */
-	 0,				/* bitpos */
-	 complain_overflow_signed,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
-	 "R_ZPU_TPREL_HI20",		/* name */
-	 TRUE,				/* partial_inplace */
-	 0,				/* src_mask */
-	 ENCODE_UTYPE_IMM (-1U),	/* dst_mask */
-	 FALSE),			/* pcrel_offset */
 
   /* Low 12 bits of TLS LE thread pointer offset for loads and adds.  */
   HOWTO (R_ZPU_TPREL_LO12_I,		/* type */
@@ -640,50 +552,6 @@ static reloc_howto_type howto_table[] =
 	 0,				/* dst_mask */
 	 TRUE),				/* pcrel_offset */
 
-  /* 8-bit PC-relative branch offset.  */
-  HOWTO (R_ZPU_RVC_BRANCH,		/* type */
-	 0,				/* rightshift */
-	 2,				/* size */
-	 32,				/* bitsize */
-	 TRUE,				/* pc_relative */
-	 0,				/* bitpos */
-	 complain_overflow_signed,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
-	 "R_ZPU_RVC_BRANCH",		/* name */
-	 FALSE,				/* partial_inplace */
-	 0,				/* src_mask */
-	 ENCODE_RVC_B_IMM (-1U),	/* dst_mask */
-	 TRUE),				/* pcrel_offset */
-
-  /* 11-bit PC-relative jump offset.  */
-  HOWTO (R_ZPU_RVC_JUMP,		/* type */
-	 0,				/* rightshift */
-	 2,				/* size */
-	 32,				/* bitsize */
-	 TRUE,				/* pc_relative */
-	 0,				/* bitpos */
-	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
-	 "R_ZPU_RVC_JUMP",		/* name */
-	 FALSE,				/* partial_inplace */
-	 0,				/* src_mask */
-	 ENCODE_RVC_J_IMM (-1U),	/* dst_mask */
-	 TRUE),				/* pcrel_offset */
-
-  /* High 6 bits of 18-bit absolute address.  */
-  HOWTO (R_ZPU_RVC_LUI,		/* type */
-	 0,				/* rightshift */
-	 2,				/* size */
-	 32,				/* bitsize */
-	 FALSE,				/* pc_relative */
-	 0,				/* bitpos */
-	 complain_overflow_dont,	/* complain_on_overflow */
-	 bfd_elf_generic_reloc,		/* special_function */
-	 "R_ZPU_RVC_LUI",		/* name */
-	 FALSE,				/* partial_inplace */
-	 0,				/* src_mask */
-	 ENCODE_RVC_IMM (-1U),		/* dst_mask */
-	 FALSE),			/* pcrel_offset */
 
   /* GP-relative load.  */
   HOWTO (R_ZPU_GPREL_I,		/* type */

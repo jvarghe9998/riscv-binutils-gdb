@@ -29,184 +29,18 @@ typedef uint64_t insn_t;
 
 static inline unsigned int zpu_insn_length (insn_t insn)
 {
-#if 0
-  if ((insn & 0x3) != 0x3) /* RVC.  */
-    return 2;
-  if ((insn & 0x1f) != 0x1f) /* Base ISA and extensions in 32-bit space.  */
-    return 4;
-  if ((insn & 0x3f) == 0x1f) /* 48-bit extensions.  */
-    return 6;
-  if ((insn & 0x7f) == 0x3f) /* 64-bit extensions.  */
-    return 8;
-  /* Longer instructions not supported at the moment.  */
-  return 2;
-#else
   return 4;
-#endif
 }
 
-static const char * const zpu_rm[8] =
-{
-  "rne", "rtz", "rdn", "rup", "rmm", 0, 0, "dyn"
-};
-
-static const char * const zpu_pred_succ[16] =
-{
-  0,   "w",  "r",  "rw",  "o",  "ow",  "or",  "orw",
-  "i", "iw", "ir", "irw", "io", "iow", "ior", "iorw"
-};
-
-
-
-#define RVC_JUMP_BITS 11
-#define RVC_JUMP_REACH ((1ULL << RVC_JUMP_BITS) * ZPU_JUMP_ALIGN)
-
-#define RVC_BRANCH_BITS 8
-#define RVC_BRANCH_REACH ((1ULL << RVC_BRANCH_BITS) * ZPU_BRANCH_ALIGN)
-
 #define RV_X(x, s, n)  (((x) >> (s)) & ((1 << (n)) - 1))
 
-#define RV_IMM_SIGN(x) (-(((x) >> 31) & 1))
-
-#define EXTRACT_ITYPE_IMM(x) \
-  (RV_X(x, 20, 12) | (RV_IMM_SIGN(x) << 12))
-#define EXTRACT_STYPE_IMM(x) \
-  (RV_X(x, 7, 5) | (RV_X(x, 25, 7) << 5) | (RV_IMM_SIGN(x) << 12))
-#define EXTRACT_SBTYPE_IMM(x) \
-  ((RV_X(x, 8, 4) << 1) | (RV_X(x, 25, 6) << 5) | (RV_X(x, 7, 1) << 11) | (RV_IMM_SIGN(x) << 12))
-#define EXTRACT_UTYPE_IMM(x) \
-  ((RV_X(x, 12, 20) << 12) | (RV_IMM_SIGN(x) << 32))
-#define EXTRACT_UJTYPE_IMM(x) \
-  ((RV_X(x, 21, 10) << 1) | (RV_X(x, 20, 1) << 11) | (RV_X(x, 12, 8) << 12) | (RV_IMM_SIGN(x) << 20))
-#define EXTRACT_RVC_IMM(x) \
-  (RV_X(x, 2, 5) | (-RV_X(x, 12, 1) << 5))
-#define EXTRACT_RVC_LUI_IMM(x) \
-  (EXTRACT_RVC_IMM (x) << ZPU_IMM_BITS)
-#define EXTRACT_RVC_SIMM3(x) \
-  (RV_X(x, 10, 2) | (-RV_X(x, 12, 1) << 2))
-#define EXTRACT_RVC_ADDI4SPN_IMM(x) \
-  ((RV_X(x, 6, 1) << 2) | (RV_X(x, 5, 1) << 3) | (RV_X(x, 11, 2) << 4) | (RV_X(x, 7, 4) << 6))
-#define EXTRACT_RVC_ADDI16SP_IMM(x) \
-  ((RV_X(x, 6, 1) << 4) | (RV_X(x, 2, 1) << 5) | (RV_X(x, 5, 1) << 6) | (RV_X(x, 3, 2) << 7) | (-RV_X(x, 12, 1) << 9))
-#define EXTRACT_RVC_LW_IMM(x) \
-  ((RV_X(x, 6, 1) << 2) | (RV_X(x, 10, 3) << 3) | (RV_X(x, 5, 1) << 6))
-#define EXTRACT_RVC_LD_IMM(x) \
-  ((RV_X(x, 10, 3) << 3) | (RV_X(x, 5, 2) << 6))
-#define EXTRACT_RVC_LWSP_IMM(x) \
-  ((RV_X(x, 4, 3) << 2) | (RV_X(x, 12, 1) << 5) | (RV_X(x, 2, 2) << 6))
-#define EXTRACT_RVC_LDSP_IMM(x) \
-  ((RV_X(x, 5, 2) << 3) | (RV_X(x, 12, 1) << 5) | (RV_X(x, 2, 3) << 6))
-#define EXTRACT_RVC_SWSP_IMM(x) \
-  ((RV_X(x, 9, 4) << 2) | (RV_X(x, 7, 2) << 6))
-#define EXTRACT_RVC_SDSP_IMM(x) \
-  ((RV_X(x, 10, 3) << 3) | (RV_X(x, 7, 3) << 6))
-#define EXTRACT_RVC_B_IMM(x) \
-  ((RV_X(x, 3, 2) << 1) | (RV_X(x, 10, 2) << 3) | (RV_X(x, 2, 1) << 5) | (RV_X(x, 5, 2) << 6) | (-RV_X(x, 12, 1) << 8))
-#define EXTRACT_RVC_J_IMM(x) \
-  ((RV_X(x, 3, 3) << 1) | (RV_X(x, 11, 1) << 4) | (RV_X(x, 2, 1) << 5) | (RV_X(x, 7, 1) << 6) | (RV_X(x, 6, 1) << 7) | (RV_X(x, 9, 2) << 8) | (RV_X(x, 8, 1) << 10) | (-RV_X(x, 12, 1) << 11))
-
-#define ENCODE_ITYPE_IMM(x) \
+#define ENCODE_ITYPE_IMM(x)			\
   (RV_X(x, 0, 12) << 20)
-#define ENCODE_STYPE_IMM(x) \
+#define ENCODE_STYPE_IMM(x)				\
   ((RV_X(x, 0, 5) << 7) | (RV_X(x, 5, 7) << 25))
-#define ENCODE_SBTYPE_IMM(x) \
+
+#define ENCODE_SBTYPE_IMM(x)						\
   ((RV_X(x, 1, 4) << 8) | (RV_X(x, 5, 6) << 25) | (RV_X(x, 11, 1) << 7) | (RV_X(x, 12, 1) << 31))
-#define ENCODE_UTYPE_IMM(x) \
-  (RV_X(x, 12, 20) << 12)
-#define ENCODE_UJTYPE_IMM(x) \
-  ((RV_X(x, 1, 10) << 21) | (RV_X(x, 11, 1) << 20) | (RV_X(x, 12, 8) << 12) | (RV_X(x, 20, 1) << 31))
-#define ENCODE_RVC_IMM(x) \
-  ((RV_X(x, 0, 5) << 2) | (RV_X(x, 5, 1) << 12))
-#define ENCODE_RVC_LUI_IMM(x) \
-  ENCODE_RVC_IMM ((x) >> ZPU_IMM_BITS)
-#define ENCODE_RVC_SIMM3(x) \
-  (RV_X(x, 0, 3) << 10)
-#define ENCODE_RVC_ADDI4SPN_IMM(x) \
-  ((RV_X(x, 2, 1) << 6) | (RV_X(x, 3, 1) << 5) | (RV_X(x, 4, 2) << 11) | (RV_X(x, 6, 4) << 7))
-#define ENCODE_RVC_ADDI16SP_IMM(x) \
-  ((RV_X(x, 4, 1) << 6) | (RV_X(x, 5, 1) << 2) | (RV_X(x, 6, 1) << 5) | (RV_X(x, 7, 2) << 3) | (RV_X(x, 9, 1) << 12))
-#define ENCODE_RVC_LW_IMM(x) \
-  ((RV_X(x, 2, 1) << 6) | (RV_X(x, 3, 3) << 10) | (RV_X(x, 6, 1) << 5))
-#define ENCODE_RVC_LD_IMM(x) \
-  ((RV_X(x, 3, 3) << 10) | (RV_X(x, 6, 2) << 5))
-#define ENCODE_RVC_LWSP_IMM(x) \
-  ((RV_X(x, 2, 3) << 4) | (RV_X(x, 5, 1) << 12) | (RV_X(x, 6, 2) << 2))
-#define ENCODE_RVC_LDSP_IMM(x) \
-  ((RV_X(x, 3, 2) << 5) | (RV_X(x, 5, 1) << 12) | (RV_X(x, 6, 3) << 2))
-#define ENCODE_RVC_SWSP_IMM(x) \
-  ((RV_X(x, 2, 4) << 9) | (RV_X(x, 6, 2) << 7))
-#define ENCODE_RVC_SDSP_IMM(x) \
-  ((RV_X(x, 3, 3) << 10) | (RV_X(x, 6, 3) << 7))
-#define ENCODE_RVC_B_IMM(x) \
-  ((RV_X(x, 1, 2) << 3) | (RV_X(x, 3, 2) << 10) | (RV_X(x, 5, 1) << 2) | (RV_X(x, 6, 2) << 5) | (RV_X(x, 8, 1) << 12))
-#define ENCODE_RVC_J_IMM(x) \
-  ((RV_X(x, 1, 3) << 3) | (RV_X(x, 4, 1) << 11) | (RV_X(x, 5, 1) << 2) | (RV_X(x, 6, 1) << 7) | (RV_X(x, 7, 1) << 6) | (RV_X(x, 8, 2) << 9) | (RV_X(x, 10, 1) << 8) | (RV_X(x, 11, 1) << 12))
-
-#define VALID_ITYPE_IMM(x) (EXTRACT_ITYPE_IMM(ENCODE_ITYPE_IMM(x)) == (x))
-#define VALID_STYPE_IMM(x) (EXTRACT_STYPE_IMM(ENCODE_STYPE_IMM(x)) == (x))
-#define VALID_SBTYPE_IMM(x) (EXTRACT_SBTYPE_IMM(ENCODE_SBTYPE_IMM(x)) == (x))
-#define VALID_UTYPE_IMM(x) (EXTRACT_UTYPE_IMM(ENCODE_UTYPE_IMM(x)) == (x))
-#define VALID_UJTYPE_IMM(x) (EXTRACT_UJTYPE_IMM(ENCODE_UJTYPE_IMM(x)) == (x))
-#define VALID_RVC_IMM(x) (EXTRACT_RVC_IMM(ENCODE_RVC_IMM(x)) == (x))
-#define VALID_RVC_LUI_IMM(x) (EXTRACT_RVC_LUI_IMM(ENCODE_RVC_LUI_IMM(x)) == (x))
-#define VALID_RVC_SIMM3(x) (EXTRACT_RVC_SIMM3(ENCODE_RVC_SIMM3(x)) == (x))
-#define VALID_RVC_ADDI4SPN_IMM(x) (EXTRACT_RVC_ADDI4SPN_IMM(ENCODE_RVC_ADDI4SPN_IMM(x)) == (x))
-#define VALID_RVC_ADDI16SP_IMM(x) (EXTRACT_RVC_ADDI16SP_IMM(ENCODE_RVC_ADDI16SP_IMM(x)) == (x))
-#define VALID_RVC_LW_IMM(x) (EXTRACT_RVC_LW_IMM(ENCODE_RVC_LW_IMM(x)) == (x))
-#define VALID_RVC_LD_IMM(x) (EXTRACT_RVC_LD_IMM(ENCODE_RVC_LD_IMM(x)) == (x))
-#define VALID_RVC_LWSP_IMM(x) (EXTRACT_RVC_LWSP_IMM(ENCODE_RVC_LWSP_IMM(x)) == (x))
-#define VALID_RVC_LDSP_IMM(x) (EXTRACT_RVC_LDSP_IMM(ENCODE_RVC_LDSP_IMM(x)) == (x))
-#define VALID_RVC_SWSP_IMM(x) (EXTRACT_RVC_SWSP_IMM(ENCODE_RVC_SWSP_IMM(x)) == (x))
-#define VALID_RVC_SDSP_IMM(x) (EXTRACT_RVC_SDSP_IMM(ENCODE_RVC_SDSP_IMM(x)) == (x))
-#define VALID_RVC_B_IMM(x) (EXTRACT_RVC_B_IMM(ENCODE_RVC_B_IMM(x)) == (x))
-#define VALID_RVC_J_IMM(x) (EXTRACT_RVC_J_IMM(ENCODE_RVC_J_IMM(x)) == (x))
-#ifdef JOEV
-
-#define ZPU_RTYPE(insn, rd, rs1, rs2) \
-  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ((rs1) << OP_SH_RS1) | ((rs2) << OP_SH_RS2))
-#define ZPU_ITYPE(insn, rd, rs1, imm) \
-  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ((rs1) << OP_SH_RS1) | ENCODE_ITYPE_IMM(imm))
-#define ZPU_STYPE(insn, rs1, rs2, imm) \
-  ((MATCH_ ## insn) | ((rs1) << OP_SH_RS1) | ((rs2) << OP_SH_RS2) | ENCODE_STYPE_IMM(imm))
-#define ZPU_SBTYPE(insn, rs1, rs2, target) \
-  ((MATCH_ ## insn) | ((rs1) << OP_SH_RS1) | ((rs2) << OP_SH_RS2) | ENCODE_SBTYPE_IMM(target))
-#define ZPU_UTYPE(insn, rd, bigimm) \
-  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ENCODE_UTYPE_IMM(bigimm))
-#define ZPU_UJTYPE(insn, rd, target) \
-  ((MATCH_ ## insn) | ((rd) << OP_SH_RD) | ENCODE_UJTYPE_IMM(target))
-
-#define ZPU_NOP ZPU_ITYPE(ADDI, 0, 0, 0)
-#define RVC_NOP MATCH_C_ADDI
-
-#define ZPU_CONST_HIGH_PART(VALUE) \
-  (((VALUE) + (ZPU_IMM_REACH/2)) & ~(ZPU_IMM_REACH-1))
-#define ZPU_CONST_LOW_PART(VALUE) ((VALUE) - ZPU_CONST_HIGH_PART (VALUE))
-#define ZPU_PCREL_HIGH_PART(VALUE, PC) ZPU_CONST_HIGH_PART((VALUE) - (PC))
-#define ZPU_PCREL_LOW_PART(VALUE, PC) ZPU_CONST_LOW_PART((VALUE) - (PC))
-
-#define ZPU_JUMP_BITS ZPU_BIGIMM_BITS
-#define ZPU_JUMP_ALIGN_BITS 1
-#define ZPU_JUMP_ALIGN (1 << ZPU_JUMP_ALIGN_BITS)
-#define ZPU_JUMP_REACH ((1ULL << ZPU_JUMP_BITS) * ZPU_JUMP_ALIGN)
-
-#define ZPU_IMM_BITS 12
-#define ZPU_BIGIMM_BITS (32 - ZPU_IMM_BITS)
-#define ZPU_IMM_REACH (1LL << ZPU_IMM_BITS)
-#define ZPU_BIGIMM_REACH (1LL << ZPU_BIGIMM_BITS)
-#define ZPU_RVC_IMM_REACH (1LL << 6)
-#define ZPU_BRANCH_BITS ZPU_IMM_BITS
-#define ZPU_BRANCH_ALIGN_BITS ZPU_JUMP_ALIGN_BITS
-#define ZPU_BRANCH_ALIGN (1 << ZPU_BRANCH_ALIGN_BITS)
-#define ZPU_BRANCH_REACH (ZPU_IMM_REACH * ZPU_BRANCH_ALIGN)
-
-#else
-#define RV_X(x, s, n)  (((x) >> (s)) & ((1 << (n)) - 1))
-#define ENCODE_UTYPE_IMM(x) \
-  (RV_X(x, 12, 20) << 12)
-#define ENCODE_ITYPE_IMM(x) \
-  (RV_X(x, 0, 12) << 20)
-
-#endif /* JOEV */
 
 /* BIS1 Register Fields */
 #define OP_MASK_R0		0x1f
@@ -227,61 +61,8 @@ static const char * const zpu_pred_succ[16] =
 #define OP_SH_IMMS21            0
 #define OP_MASK_IMMS26        0x3ffffff
 #define OP_SH_IMMS26            0
-/* RV fields.  */
-
 #define OP_MASK_OP		0x3f
 #define OP_SH_OP		26
-#define OP_MASK_RS2		0x1f
-#define OP_SH_RS2		20
-#define OP_MASK_RS1		0x1f
-#define OP_SH_RS1		15
-#define OP_MASK_RS3		0x1f
-#define OP_SH_RS3		27
-#define OP_MASK_RD		0x1f
-#define OP_SH_RD		7
-#ifdef JOEV
-#define OP_MASK_SHAMT		0x3f
-#define OP_SH_SHAMT		20
-#define OP_MASK_SHAMTW		0x1f
-#define OP_SH_SHAMTW		20
-#define OP_MASK_RM		0x7
-#define OP_SH_RM		12
-#define OP_MASK_PRED		0xf
-#define OP_SH_PRED		24
-#define OP_MASK_SUCC		0xf
-#define OP_SH_SUCC		20
-#define OP_MASK_AQ		0x1
-#define OP_SH_AQ		26
-#define OP_MASK_RL		0x1
-#define OP_SH_RL		25
-
-
-#define OP_MASK_CUSTOM_IMM	0x7f
-#define OP_SH_CUSTOM_IMM	25
-#define OP_MASK_CSR		0xfff
-#define OP_SH_CSR		20
-
-/* RVC fields.  */
-
-#define OP_MASK_CRS2 0x1f
-#define OP_SH_CRS2 2
-#define OP_MASK_CRS1S 0x7
-#define OP_SH_CRS1S 7
-#define OP_MASK_CRS2S 0x7
-#define OP_SH_CRS2S 2
-
-/* ABI names for selected x-registers.  */
-
-#define X_RA 1
-#define X_SP 2
-#define X_GP 3
-#define X_TP 4
-#define X_T0 5
-#define X_T1 6
-#define X_T2 7
-#define X_T3 28
-
-#endif /* JOEV */
 
 #define NGPR 32
 #define NFPR 32
@@ -344,55 +125,7 @@ struct zpu_opcode
   unsigned long pinfo;
 };
 
-/* Instruction is a simple alias (e.g. "mv" for "addi").  */
-#define	INSN_ALIAS		0x00000001
-/* Instruction is actually a macro.  It should be ignored by the
-   disassembler, and requires special treatment by the assembler.  */
-#define INSN_MACRO		0xffffffff
-
-/* This is a list of macro expanded instructions.
-
-   _I appended means immediate
-   _A appended means address
-   _AB appended means address with base register
-   _D appended means 64 bit floating point constant
-   _S appended means 32 bit floating point constant.  */
-
-enum
-{
-  M_LA,
-  M_LLA,
-  M_LA_TLS_GD,
-  M_LA_TLS_IE,
-  M_LB,
-  M_LBU,
-  M_LH,
-  M_LHU,
-  M_LW,
-  M_LWU,
-  M_LD,
-  M_SB,
-  M_SH,
-  M_SW,
-  M_SD,
-  M_FLW,
-  M_FLD,
-  M_FLQ,
-  M_FSW,
-  M_FSD,
-  M_FSQ,
-  M_CALL,
-  M_J,
-  M_LI,
-  M_NUM_MACROS
-};
-
-
 extern const char * const zpu_gpr_names_numeric[NGPR];
-extern const char * const zpu_gpr_names_abi[NGPR];
-extern const char * const zpu_fpr_names_numeric[NFPR];
-extern const char * const zpu_fpr_names_abi[NFPR];
-
 extern const struct zpu_opcode zpu_opcodes[];
 
 #endif /* _ZPU_H_ */
